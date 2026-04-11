@@ -4,7 +4,10 @@
 ![Built with NXAI](https://img.shields.io/badge/Built_with-technology_from_NXAI-orange)
 
 ## Overview
-This research explores different Loss functions on the TiRex model and architecture.
+This research explores following changes and methods on the TiRex model:
+- Impact of different Loss functions
+- Autoregressive generation methods
+
 
 > **Note on Licensing:** This project's original code is licensed under **Apache 2.0**. However, it incorporates technology from the **NXAI TiRex** project, which is subject to the [NXAI Community License](LICENSE_NXAI)
 

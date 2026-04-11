@@ -13,6 +13,7 @@ This research explores different Loss functions on the TiRex model and architect
 - **src/:** Research code and custom loss functions.
 - **notebooks/:** Jupyter Notebooks with test results.
 - **data/:** Research data used for results and testing.
+- **report/:** Report of the research.
 - **pyproject.toml:** Project metadata and dependency definitions.
 
 

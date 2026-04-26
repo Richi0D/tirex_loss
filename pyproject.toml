@@ -8,6 +8,8 @@ dependencies = [
     "torch",
     "torchvision",
     "numpy",
+    "tzdata",
+    "niquests",
     "polars>=1.39.3",
     "ipykernel>=7.2.0",
     "scikit-learn>=1.8.0",

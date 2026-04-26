@@ -36,3 +36,11 @@
  3. repeat until full forecast horizon is predicted. 
     1. nan values are added to the context. (if horizon exceeds the max context length of 2048 only nan values are added as input and model will fail. so as longer the forecast horizon gets, as shorter gets the seen historic data!)
        1. TODO: add other methods instead of treading them as nan. (mean, median,...)
+
+
+# Data Sources
+- Home Electricity, 15min, 100k timestamps, home meter
+- OPSD Time Series (Europe), https://doi.org/10.25832/time_series/2019-06-05
+- Renewable Energy and Electricity Demand (US), https://openenergyhub.ornl.gov/explore/dataset/renewable-energy-and-electricity-demand-time-series-dataset-with-exogenous-varia/information/?utm_source=chatgpt.com
+- PJM Hourly Energy Consumption (US), https://www.kaggle.com/datasets/robikscube/hourly-energy-consumption
+- M6, M5, M4 Competition Datasets, https://forecasters.org/resources/time-series-data/

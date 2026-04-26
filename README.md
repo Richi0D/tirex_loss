@@ -41,6 +41,10 @@ We recommend using `uv` to sync the environment. This will automatically install
 # Sync dependencies (installs Torch + CUDA)
 uv sync
 ```
+*You can also use the currently active environment with*
+```bash
+uv sync --active
+```
 
 ### 3. Verify CUDA Support
 Ensure your NVIDIA GPU is recognized by PyTorch:

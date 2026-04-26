@@ -51,3 +51,10 @@ Ensure your NVIDIA GPU is recognized by PyTorch:
 ```bash
 uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
+
+### 4. Download data
+Use the notebook [data_download.ipynb](notebooks/data_download.ipynb) to download all the test data used for the project.
+After running it you should have three CSV files.
+- **data/train.csv:** Contain all the training data used.
+- **data/test.csv:** Contain all the test and validation data used.
+- **data/description_sequences.csv:** Additional information to each sequence.

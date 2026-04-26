@@ -181,5 +181,10 @@ cython_debug/
 .cursorindexingignore
 
 # data
-data/opsd-time_series/
-data/CAISO_NREL/
+data/opsd/
+data/openenergyhub/
+data/pjm/
+data/iif/
+data/test.csv
+data/train.csv
+data/description_sequences.csv

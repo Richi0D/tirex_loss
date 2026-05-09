@@ -44,3 +44,8 @@
 - Renewable Energy and Electricity Demand (US), https://openenergyhub.ornl.gov/explore/dataset/renewable-energy-and-electricity-demand-time-series-dataset-with-exogenous-varia/information/?utm_source=chatgpt.com
 - PJM Hourly Energy Consumption (US), https://www.kaggle.com/datasets/robikscube/hourly-energy-consumption
 - M6, M5, M4 Competition Datasets, https://forecasters.org/resources/time-series-data/
+
+
+# Metrics
+- MAPE explodes with zero values in time series!
+- 

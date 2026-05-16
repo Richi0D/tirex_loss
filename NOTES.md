@@ -23,7 +23,7 @@
        2. set nan values based on mask
        3. _forward_model:
           1. input_patch_embedding: input residual block.
-             1. input size = 2048/32, context length/window size
+             1. input size = 2048/32=64 (64 patches), context length/window size
                 each window(patch) get processed in parallel
              2. output size = 512
           2. xLSTM Block: Input is feeded into the 12x blocks
@@ -38,14 +38,44 @@
        1. TODO: add other methods instead of treading them as nan. (mean, median,...)
 
 
-# Data Sources
-- Home Electricity, 15min, 100k timestamps, home meter
-- OPSD Time Series (Europe), https://doi.org/10.25832/time_series/2019-06-05
-- Renewable Energy and Electricity Demand (US), https://openenergyhub.ornl.gov/explore/dataset/renewable-energy-and-electricity-demand-time-series-dataset-with-exogenous-varia/information/?utm_source=chatgpt.com
-- PJM Hourly Energy Consumption (US), https://www.kaggle.com/datasets/robikscube/hourly-energy-consumption
-- M6, M5, M4 Competition Datasets, https://forecasters.org/resources/time-series-data/
-
 
 # Metrics
 - MAPE explodes with zero values in time series!
-- 
+  - Using sMAPE helps a bit, since we do 
+      (np.abs(y_true) + np.abs(y_pred)) / 2.0
+- MASE: scale free metric, but need some training data
+- r2: just third option for some variance metric.
+- Weighted Interval Score (WIS):
+   The Weighted Interval Score is the primary metric for evaluating the overall accuracy and "sharpness" of the probabilistic forecast. It is a proper scoring rule that rewards the model for providing narrow uncertainty bounds while heavily penalizing any instances where the true value falls outside those bounds.
+   
+   Interpretation: 
+   A lower WIS indicates a better model. It balances the desire for "sharp" (narrow) intervals with the need for coverage (capturing the true value). It can be viewed as a generalization of Mean Absolute Error (MAE) for distribution-based forecasts.
+- Reliability Diagram (Calibration Plot):
+   The Reliability Diagram evaluates the "honesty" of the model’s uncertainty estimates. It plots the predicted quantile levels (e.g., $0.1, 0.2, \dots, 0.9$) against the actual frequency with which the true values fall below those predictions.
+   
+   Interpretation:
+   Perfect Calibration: 
+   The data follows the $45^\circ$ dashed line.
+   Over-forecasting: 
+   The curve is below the diagonal (true values fall below the quantiles less often than expected).
+   Under-forecasting: 
+   The curve is above the diagonal (true values fall below the quantiles more often than expected).
+   Over-confident: The curve has an "S" shape, meaning the predicted intervals are too narrow to capture the actual variance.
+
+
+# idea forecasting with additional features
+put learnable embedding before model. embedd all input features via this embedding.
+We need two different embeddings: one for all features with known historic data, and one only with future known data.
+we might need a linear layer head that squash this high dimensional embeddings into a single value. since tirex can only handle a single input feature.
+then add this single value like residual style into the model
+enriched = raw_value + projection_head(embeddings)
+since the model has only a limtied context of 2048 we need to split this between historic and future input. example: 1024=historic, 1024=known future input.
+The model has a mask. so set the mask for future values to zero.
+output is then the predictions with quantiles.
+So we can fine tune tirex model with additional features.
+phase 1: only train your embedding + projection layers
+for param in pretrained_model.parameters():
+    param.requires_grad = False
+phase 2: unfreeze and fine-tune everything together with small lr
+for param in pretrained_model.parameters():
+    param.requires_grad = True

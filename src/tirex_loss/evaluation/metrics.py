@@ -78,7 +78,7 @@ def calculate_quantile_reliability(
     y_pred: np.ndarray, 
     quantiles: List[float],
     feature_names: Optional[List[str]] = None,
-    plot: bool = True,
+    plot: bool = False,
     ax: Optional[plt.Axes] = None
 ) -> np.ndarray:
     """

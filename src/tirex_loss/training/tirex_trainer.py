@@ -119,7 +119,7 @@ class Tirex_Trainer():
                 y = y_batch.to(self.device)
                 pred_length = pred_length_batch[0].item()
 
-                outputs = self._forecast_tensor(x, prediction_length=pred_length)
+                outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
                 # outputs shape: [batch, n_quantiles, seq_len] -> need to be transposed to [batch, seq_len, n_quantiles] for the loss function
                 outputs = outputs.transpose(1, 2)                
                 loss = self.criterion(outputs, y)

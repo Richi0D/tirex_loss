@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 from .mod_tirex import Mod_Tirex
-from tirex.models.tirex import _adjust_context_length
 from tirex.models.patcher import PatchedTokenizer
 
 class Base_Model(nn.Module):
@@ -12,7 +11,7 @@ class Base_Model(nn.Module):
     """
     def __init__(self,
                  context_length: int,
-                 quantiles: List[float],
+                 quantiles: list[float],
                  patch_size: int = 32,
                  use_slstm:bool = True
                  ):
@@ -35,6 +34,25 @@ class Base_Model(nn.Module):
                                         output_residual_h_dim=1024,
                                         use_slstm=use_slstm)
     
+
+    def _adjust_context_length(self, context: torch.Tensor, min_context: int, max_context: int):
+        pad_len = 0
+        if context.shape[-1] > max_context:
+            context = context[..., -max_context:]
+        if context.shape[-1] < min_context:
+            pad_len = min_context - context.shape[-1]
+            pad = torch.full(
+                (context.shape[0], pad_len),
+                fill_value=torch.nan,
+                device=context.device,
+                dtype=context.dtype,
+            )
+            context = torch.concat((pad, context), dim=1)
+        return context, pad_len
+
+    def _forecast_tensor(self, context, prediction_length=None, new_patch_count=1, autoregressive=False):
+        return self(context, prediction_length, new_patch_count, autoregressive)
+
     def forward(self,
                 context:torch.Tensor,
                 prediction_length:int | None = None,
@@ -47,11 +65,12 @@ class Base_Model(nn.Module):
         if prediction_length <= 0:
             raise ValueError("prediction_length needs to be > 0")
         
+        remaining = -(prediction_length // -self.tokenizer.patch_size)
         predictions = []
         context = context.to(dtype=torch.float32)
         while remaining > 0:
             new_patch_count = min(remaining, new_patch_count)
-            prediction = self._forecast_single_step(context, new_patch_count)
+            prediction = self._forecast_single_step(context)
 
             predictions.append(prediction)
             remaining -= new_patch_count
@@ -60,7 +79,7 @@ class Base_Model(nn.Module):
                 break
 
             if autoregressive:
-                mean = prediction[:, self.config.quantiles.index(0.5), :].squeeze(-1)
+                mean = prediction[:, self.quantiles.index(0.5), :].squeeze(-1)
                 context = torch.cat([context, mean], dim=-1)
             else:
                 context = torch.cat([context, torch.full_like(prediction[:, 0, :].detach(), fill_value=torch.nan)], dim=-1)
@@ -68,20 +87,16 @@ class Base_Model(nn.Module):
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)        
 
         
-    def _forecast_single_step(self, context:torch.Tensor) -> torch.Tensor:
+    def _forecast_single_step(self, context:torch.Tensor, new_patch_count: int = 1) -> torch.Tensor:
 
         # adjust context length, will take only last n time steps of the context
-        context, _ = _adjust_context_length(context, self.context_length, self.context_length)
+        context, _ = self._adjust_context_length(context, self.context_length, self.context_length)
 
         # scale the data and transform to patches
         input_token, tokenizer_state = self.tokenizer.input_transform(context)
 
         # mask null values
-        input_mask = (
-            input_mask.to(input_token.dtype)
-            if input_mask is not None
-            else torch.isnan(input_token).logical_not().to(input_token.dtype)
-        )        
+        input_mask = torch.isnan(input_token).logical_not().to(input_token.dtype)    
         input_token = torch.nan_to_num(input_token, nan=self.nan_mask_value)
 
         # model pass
@@ -92,5 +107,8 @@ class Base_Model(nn.Module):
             quantile_preds, -1, (len(self.quantiles), self.patch_size)
         )
         quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
+        predicted_token = quantile_preds[:, :, -new_patch_count:, :].to(input_token)  # predicted token
         # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
         predicted_token = self.tokenizer.output_transform(predicted_token, tokenizer_state)
+
+        return predicted_token

@@ -38,7 +38,8 @@ class LSTMBlock(nn.Module):
         self.ffn = FeedForward(config.embedding_dim, up_proj_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.lstm(self.norm_slstm(x))
+        x_out, _ = self.lstm(self.norm_slstm(x))
+        x = x + x_out
         x = x + self.ffn(self.norm_ffn(x))
         return x
 
@@ -88,15 +89,15 @@ class RMSNorm(nn.Module):
         return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
 
 
-class Hidden_Block(nn.Module):
+class Mod_Tirex(nn.Module):
     """
-    Hidden Block with slstm or lstm layer
+    Custom/Modified Tirex Model with slstm or lstm block
 
     """
     def __init__(self,
                  input_patch_size:int,
                  output_patch_size:int,
-                 quantiles:List[float],
+                 quantiles:list[float],
                  hidden_size:int=256,
                  input_residual_h_dim:int=1024,
                  output_residual_h_dim:int=1024,
@@ -112,10 +113,11 @@ class Hidden_Block(nn.Module):
             out_dim=hidden_size
             )
     
-        # LSTM or slstm Layer
+        # LSTM or slstm Block
         self.slstm_block_config = sLSTMBlockConfig(embedding_dim=hidden_size, num_heads=4)
         if use_slstm:
-            self.hidden_block = sLSTMBlock(config=self.slstm_block_config, backend='cuda') # backend can be "torch" or "cuda". Only use cuda if device is cuda!
+            # backend can be "torch" or "cuda". Only use cuda if xlstm with custom cuda kernel is installed!
+            self.hidden_block = sLSTMBlock(config=self.slstm_block_config, backend='torch')
         else:
             self.hidden_block = LSTMBlock(config=self.slstm_block_config, hidden_size=hidden_size, num_layers=4)
 

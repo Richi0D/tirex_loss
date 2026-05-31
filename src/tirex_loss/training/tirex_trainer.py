@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
+import inspect
 
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -18,11 +19,13 @@ class Tirex_Trainer():
     
     def __init__(self, model:nn.Module,
                  criterion, optimizer,
+                 quantiles:list[float],
                  model_path:str,
                  log_path:str,
                  device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
                  status_bar:bool=True,
-                 quantile_loss:bool=True
+                 quantile_loss:bool=True,
+                 autoregressive:bool=False,
                  ):
         
         self.model = model.to(device)
@@ -38,10 +41,14 @@ class Tirex_Trainer():
         self.history = {"train_loss": [], "test_loss": []}
         self.status_bar = status_bar
         self.quantile_loss = quantile_loss
+        self.autoregressive = autoregressive
+        self.quantiles = quantiles
     
         self.model_best_path = os.path.join(self.model_path, 'best_model.pth')
         self.model_last_path = os.path.join(self.model_path, 'last_model.pth')
         self.writer = TrainingLogger(log_dir=self.log_path)
+
+        self._supports_autoregressive = 'autoregressive' in inspect.signature(self.model._forecast_tensor).parameters
 
 
     def reset(self):
@@ -77,14 +84,18 @@ class Tirex_Trainer():
             
             # Forward pass
             # using the _forecast_tensor will return the quantile losses for the given prediction length
-            outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
+            if self._supports_autoregressive:
+                outputs = self.model._forecast_tensor(x, prediction_length=pred_length, autoregressive=self.autoregressive)
+            else:
+                outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
             # outputs shape: [batch, n_quantiles, seq_len] -> need to be transposed to [batch, seq_len, n_quantiles] for the loss function
             outputs = outputs.transpose(1, 2)
             
+            #y_scaled = (y - scale_state.loc) / scale_state.scale
             if self.quantile_loss:
                 loss = self.criterion(outputs, y)
             else:
-                mean_idx = self.model.config.quantiles.index(0.5)  # median as mean
+                mean_idx = self.quantiles.index(0.5)  # median as mean
                 mean = outputs[:, :, mean_idx].squeeze(-1)  # median as mean
                 loss = self.criterion(mean, y)
 
@@ -127,14 +138,17 @@ class Tirex_Trainer():
                 y = y_batch.to(self.device)
                 pred_length = pred_length_batch[0].item()
 
-                outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
+                if self._supports_autoregressive:
+                    outputs = self.model._forecast_tensor(x, prediction_length=pred_length, autoregressive=self.autoregressive)
+                else:
+                    outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
                 # outputs shape: [batch, n_quantiles, seq_len] -> need to be transposed to [batch, seq_len, n_quantiles] for the loss function
                 outputs = outputs.transpose(1, 2)
 
                 if self.quantile_loss:
                     loss = self.criterion(outputs, y)
                 else:
-                    mean_idx = self.model.config.quantiles.index(0.5)  # median as mean
+                    mean_idx = self.quantiles.index(0.5)  # median as mean
                     mean = outputs[:, :, mean_idx].squeeze(-1)  # median as mean
                     loss = self.criterion(mean, y)                
 

@@ -25,12 +25,16 @@
           1. input_patch_embedding: input residual block.
              1. input size = 2048/32=64 (64 patches), context length/window size
                 each window(patch) get processed in parallel
+               hidden: from torch.Size([1, 64, 32]) to torch.Size([1, 64, 2048])
+               out: from torch.Size([1, 64, 2048]) to torch.Size([1, 64, 512])
+               residual: from torch.Size([1, 64, 32]) to torch.Size([1, 64, 512])
              2. output size = 512
           2. xLSTM Block: Input is feeded into the 12x blocks
              1. sLSTM layer: 512 -> 512
              2. feedforward: 512 -> 1408 -> 512
-          3. output_patch_embedding: 512 -> 2048 -> 288 (32*9, window size * quantile size)
-          4. we get the same output.shape as input.shape with additional quantiles
+          3. RMS Norm: 512 -> 512
+          4. output_patch_embedding: 512 -> 2048 -> 288 (32*9, window size * quantile size)
+          5. we get the same output.shape as input.shape with additional quantiles
     5. take the last patch as prediction (32 steps) (i guess for training the true data is shifted by the window size for computing the loss. but need to clarify this!)
     6. output_transform: scale back data
  3. repeat until full forecast horizon is predicted. 

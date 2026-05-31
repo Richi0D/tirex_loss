@@ -189,4 +189,4 @@ data/fets/
 data/test.csv
 data/train.csv
 data/description_sequences.csv
-.pth
+*.pth

@@ -1,0 +1,15 @@
+{"epoch": 1, "timestamp": "2026-05-26T23:17:26.538989", "train_loss": 6155440.97275, "test_loss": 7673015.602459016, "learning_rate": 9.900000000000001e-05}
+{"epoch": 2, "timestamp": "2026-05-27T00:05:44.102709", "train_loss": 6136206.36625, "test_loss": 7673015.602459016, "learning_rate": 9.801e-05}
+{"epoch": 3, "timestamp": "2026-05-27T00:54:02.551745", "train_loss": 6148563.97225, "test_loss": 7673015.602459016, "learning_rate": 9.70299e-05}
+{"epoch": 4, "timestamp": "2026-05-27T01:42:19.996155", "train_loss": 6139793.96225, "test_loss": 7673015.602459016, "learning_rate": 9.605960100000001e-05}
+{"epoch": 5, "timestamp": "2026-05-27T02:30:03.790981", "train_loss": 6152761.96975, "test_loss": 7673015.602459016, "learning_rate": 9.509900499000001e-05}
+{"epoch": 6, "timestamp": "2026-05-27T03:18:13.106250", "train_loss": 6167834.594, "test_loss": 7673015.602459016, "learning_rate": 9.414801494010001e-05}
+{"epoch": 7, "timestamp": "2026-05-27T04:06:39.061557", "train_loss": 6174172.547875, "test_loss": 7673015.602459016, "learning_rate": 9.320653479069902e-05}
+{"epoch": 8, "timestamp": "2026-05-27T04:54:40.759406", "train_loss": 6185109.681, "test_loss": 7673015.602459016, "learning_rate": 9.227446944279203e-05}
+{"epoch": 9, "timestamp": "2026-05-27T05:42:49.028939", "train_loss": 6157196.537, "test_loss": 7673015.602459016, "learning_rate": 9.13517247483641e-05}
+{"epoch": 10, "timestamp": "2026-05-27T06:31:15.554090", "train_loss": 6160581.03825, "test_loss": 7673015.602459016, "learning_rate": 9.043820750088047e-05}
+{"epoch": 11, "timestamp": "2026-05-27T07:19:06.830460", "train_loss": 6191170.141, "test_loss": 7673015.602459016, "learning_rate": 8.953382542587167e-05}
+{"epoch": 12, "timestamp": "2026-05-27T08:07:01.546345", "train_loss": 6210903.8215, "test_loss": 7673015.602459016, "learning_rate": 8.863848717161295e-05}
+{"epoch": 13, "timestamp": "2026-05-27T08:55:03.078932", "train_loss": 6170105.8875, "test_loss": 7673015.602459016, "learning_rate": 8.775210229989682e-05}
+{"epoch": 14, "timestamp": "2026-05-27T09:43:06.862797", "train_loss": 6239352.773, "test_loss": 7673015.602459016, "learning_rate": 8.687458127689785e-05}
+{"epoch": 15, "timestamp": "2026-05-27T10:30:55.567469", "train_loss": 6165972.319625, "test_loss": 7673015.602459016, "learning_rate": 8.600583546412887e-05}

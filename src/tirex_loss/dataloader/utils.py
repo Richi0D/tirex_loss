@@ -1,6 +1,6 @@
 import numpy as np
 
-def create_windows(df, n, s_min, s_max, seed=42):
+def create_windows(df, n, s_min, s_max, patch_size=32, seed=42):
     rng = np.random.default_rng(seed)
     
     all_windows = []
@@ -14,7 +14,7 @@ def create_windows(df, n, s_min, s_max, seed=42):
         i = 0
         while True:
             # random s for this chunk
-            valid_s = np.arange(s_min, s_max + 1, 32)  # [32, 64, 96, 128, ...]
+            valid_s = np.arange(s_min, s_max + 1, patch_size)  # [32, 64, 96, 128, ...]
             valid_s = valid_s[valid_s >= s_min]
             s = rng.choice(valid_s)
             chunk_len = n + s
@@ -32,6 +32,47 @@ def create_windows(df, n, s_min, s_max, seed=42):
             all_s_values.append(s)
             
             i += s  # shift by s
+
+    windows = np.stack(all_windows, axis=0)  # [num_windows, n + max_s]
+    s_values = np.array(all_s_values)         # [num_windows]
+    return windows, s_values
+
+
+def create_windows_fixed(df, n, s_min, s_max, patch_size=32, seed=42):
+    rng = np.random.default_rng(seed)
+    
+    all_windows = []
+    all_s_values = []
+    max_s = s_max
+    total_len = n + max_s  # full padded row length
+
+    for series_idx, group in df.group_by("series_index"):
+        values = group["value"].to_numpy()
+        
+        i = 0
+        while True:
+            # fixed s for this chunk
+            s = s_max
+            chunk_len = n + s
+            
+            if i + chunk_len > len(values):
+                break  # not enough data, discard
+            
+            chunk = values[i : i + chunk_len]
+                        
+            valid_s = np.arange(s_min, s_max + 1, patch_size)  # [32, 64, 96, 128, ...]
+            valid_s = valid_s[valid_s >= s_min]
+            for s in valid_s:
+                # pad front with NaN
+                pad_size = s - patch_size
+                shifted_input_chunk = chunk[pad_size : n]
+                target_chunk = chunk[n + s - patch_size : n + s]
+                padded = np.concatenate([shifted_input_chunk, np.full(pad_size, np.nan), target_chunk])
+
+                all_windows.append(padded)
+                all_s_values.append(patch_size) # always last patch in model
+            
+            i += s  # shift by s (non overlapping targets)
 
     windows = np.stack(all_windows, axis=0)  # [num_windows, n + max_s]
     s_values = np.array(all_s_values)         # [num_windows]

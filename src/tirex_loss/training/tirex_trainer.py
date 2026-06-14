@@ -88,10 +88,11 @@ class Tirex_Trainer():
                 outputs = self.model._forecast_tensor(x, prediction_length=pred_length, autoregressive=self.autoregressive)
             else:
                 outputs = self.model._forecast_tensor(x, prediction_length=pred_length)
+                
             # outputs shape: [batch, n_quantiles, seq_len] -> need to be transposed to [batch, seq_len, n_quantiles] for the loss function
             outputs = outputs.transpose(1, 2)
-            
-            #y_scaled = (y - scale_state.loc) / scale_state.scale
+
+            #y_scaled = (y - self.model.tokenizer.scale_state.loc) / self.model.tokenizer.scale_state.scale
             if self.quantile_loss:
                 loss = self.criterion(outputs, y)
             else:

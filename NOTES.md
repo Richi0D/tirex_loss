@@ -67,6 +67,11 @@
    Over-confident: The curve has an "S" shape, meaning the predicted intervals are too narrow to capture the actual variance.
 
 
+# Questions
+- Tirex uses Z-Score scaler for each sequence. How it is trained? Also each sequence scaled and loss calculated on the inverse transformed output?
+
+
+
 # idea forecasting with additional features
 put learnable embedding before model. embedd all input features via this embedding.
 We need two different embeddings: one for all features with known historic data, and one only with future known data.

@@ -67,6 +67,7 @@ def create_windows_fixed(df, n, s_min, s_max, patch_size=32, seed=42):
                 pad_size = s - patch_size
                 shifted_input_chunk = chunk[pad_size : n]
                 target_chunk = chunk[n + s - patch_size : n + s]
+                assert not np.isnan(target_chunk).any(), "Target chunk contains NaN values"
                 padded = np.concatenate([shifted_input_chunk, np.full(pad_size, np.nan), target_chunk])
 
                 all_windows.append(padded)

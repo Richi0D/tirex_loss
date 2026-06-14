@@ -57,7 +57,7 @@ class Base_Model(nn.Module):
                 context:torch.Tensor,
                 prediction_length:int | None = None,
                 new_patch_count:int = 1,
-                autoregressive:bool = False
+                autoregressive:bool = False,
                 ) -> torch.Tensor:
         
         if prediction_length is None:
@@ -70,7 +70,7 @@ class Base_Model(nn.Module):
         context = context.to(dtype=torch.float32)
         while remaining > 0:
             new_patch_count = min(remaining, new_patch_count)
-            prediction = self._forecast_single_step(context)
+            prediction, tokenizer_state = self._forecast_single_step(context)
 
             predictions.append(prediction)
             remaining -= new_patch_count
@@ -87,7 +87,9 @@ class Base_Model(nn.Module):
         return torch.cat(predictions, dim=-1)[..., :prediction_length].to(dtype=torch.float32)        
 
         
-    def _forecast_single_step(self, context:torch.Tensor, new_patch_count: int = 1) -> torch.Tensor:
+    def _forecast_single_step(self, context:torch.Tensor,
+                              new_patch_count: int = 1,
+                              training:bool = False) -> torch.Tensor:
 
         # adjust context length, will take only last n time steps of the context
         context, _ = self._adjust_context_length(context, self.context_length, self.context_length)
@@ -108,7 +110,8 @@ class Base_Model(nn.Module):
         )
         quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
         predicted_token = quantile_preds[:, :, -new_patch_count:, :].to(input_token)  # predicted token
+
+        
         # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
         predicted_token = self.tokenizer.output_transform(predicted_token, tokenizer_state)
-
-        return predicted_token
+        return predicted_token, tokenizer_state

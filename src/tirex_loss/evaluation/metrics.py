@@ -38,8 +38,9 @@ def mean_absolute_scaled_error(
         )
 
     # Seasonal naive on training: ŷ_t = y_{t-sp}
-    y_pred_naive_train = y_train[:-sp]  
-    mae_naive = mean_absolute_error(y_train[sp:], y_pred_naive_train, multioutput=multioutput)
+    y_train_clean = y_train[~np.isnan(y_train).any(axis=1)] # remove all nan values
+    y_pred_naive_train = y_train_clean[:-sp]
+    mae_naive = mean_absolute_error(y_train_clean[sp:], y_pred_naive_train, multioutput=multioutput)
    
     # MAE of forecast (on horizon)
     mae_pred = mean_absolute_error(y_true, y_pred, multioutput=multioutput)

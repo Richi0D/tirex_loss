@@ -102,6 +102,20 @@ class Tirex_Trainer():
 
             # Backward pass
             loss.backward()
+
+            # # log norm of gradients
+            # total_norm = 0.0
+            # max_grad = 0.0
+            # for p in self.model.parameters():
+            #     if p.grad is not None:
+            #         param_norm = p.grad.data.norm(2)
+            #         total_norm += param_norm.item() ** 2
+            #         max_grad = max(max_grad, p.grad.data.abs().max().item())
+            # total_norm = total_norm ** 0.5
+
+            # if i % 50 == 0:
+            #     print(f"step {i}: loss={loss.item():.4f}, grad_norm={total_norm:.4f}, max_grad={max_grad:.4f}")
+
             if use_clipping:
                 # gradient clipping
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), clipping_max_norm)

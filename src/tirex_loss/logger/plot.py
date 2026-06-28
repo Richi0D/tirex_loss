@@ -3,52 +3,47 @@ import altair as alt
 from typing import Optional, Dict
 
 
-def plot_training_curves(metrics:Dict, width: int = 700, height: int = 400) -> Optional[alt.LayerChart]:
-    """
-    Create Altair chart for training curves
-    
-    Args:
-        width: Chart width in pixels
-        height: Chart height in pixels
-        
-    Returns:
-        Altair Chart object or None if no data
-    """
+def plot_training_curves(metrics: Dict, width: int = 700, height: int = 400,
+                          y_domain: Optional[list] = None) -> Optional[alt.LayerChart]:
     epoch_df = metrics.get('epoch_metrics', None)
     if epoch_df is None:
         return None
-    
-    # Create Altair chart
+
+    y_loss = alt.Y('value:Q', title='Loss',
+                    scale=alt.Scale(domain=y_domain) if y_domain else alt.Undefined)
+
     chart_loss = alt.Chart(epoch_df.unpivot(on=['train_loss', 'test_loss'], index='epoch')).mark_line(point=True).encode(
         x=alt.X('epoch:Q', title='Epoch'),
-        y=alt.Y('value:Q', title='Loss'),
+        y=y_loss,
         color=alt.Color('variable:N', title='Metric', scale=alt.Scale(scheme='category10')),
         tooltip=['epoch:Q', 'value:Q', 'variable:N']
     ).properties(
         title='Loss'
     )
-    
-    chart_lr = alt.Chart(epoch_df.unpivot(on=['learning_rate'], index='epoch')).mark_line(point=True, strokeDash=[4, 4], color='grey').encode(
+
+    chart_lr = alt.Chart(epoch_df.unpivot(on=['learning_rate'], index='epoch')).mark_line(point=True, strokeDash=[4, 4]).encode(
         x=alt.X('epoch:Q', title='Epoch'),
-        y=alt.Y('value:Q', title='Learning rate'),
+        y=alt.Y('value:Q', axis=alt.Axis(title='Learning rate', orient='right')),
+        color=alt.Color('variable:N', title='Metric',
+                         scale=alt.Scale(domain=['learning_rate'], range=['#bbbbbb'])),
         tooltip=['epoch:Q', 'value:Q', 'variable:N'],
+        opacity=alt.value(0.6),
     ).properties(
         title='Learning rate'
-    ).encode(
-        y=alt.Y('value:Q', axis=alt.Axis(title='Learning rate', orient='right'))
     )
-    
+
     combined = alt.layer(
         chart_loss,
         chart_lr
     ).resolve_scale(
-        y='independent'
+        y='independent',
+        color='independent'
     ).properties(
         width=width,
         height=height,
         title='Loss and Learning Rate'
     )
-    
+
     return combined
 
 def plot_batch_curves(metrics:Dict, width: int = 700, height: int = 400, 

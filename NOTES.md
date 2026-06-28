@@ -88,3 +88,10 @@ for param in pretrained_model.parameters():
 phase 2: unfreeze and fine-tune everything together with small lr
 for param in pretrained_model.parameters():
     param.requires_grad = True
+
+
+
+# TODO:
+CPM
+slstm and lstm comparison on large dataset
+mse slstm why not train

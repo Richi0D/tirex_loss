@@ -111,7 +111,6 @@ class Base_Model(nn.Module):
         quantile_preds = torch.transpose(quantile_preds, 1, 2)  # switch quantile and num_token_dimension
         predicted_token = quantile_preds[:, :, -new_patch_count:, :].to(input_token)  # predicted token
 
-        
         # Shape: [bs, num_quantiles, num_predicted_token, output_patch_size]
         predicted_token = self.tokenizer.output_transform(predicted_token, tokenizer_state)
         return predicted_token, tokenizer_state

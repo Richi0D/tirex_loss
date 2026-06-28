@@ -9,85 +9,113 @@ class TirexDataset(Dataset):
     """
     Dataset class used for dataloaders.
     """
-    def __init__(self, 
+
+    def __init__(
+        self,
         data: pl.DataFrame = None,
-        context_length: int = 2048, 
+        context_length: int = 2048,
         prediction_length_min: int = 32,
         prediction_length_max: int = 1024,
         sequences: np.ndarray = None,
-        prediction_lengths: np.ndarray = None
-        ) -> None:
-        
+        prediction_lengths: np.ndarray = None,
+    ) -> None:
+
         super().__init__()
         self.sequences = sequences
         self.prediction_lengths = prediction_lengths
         self.context_length = context_length
         self.prediction_length_min = prediction_length_min
-        self.prediction_length_max = prediction_length_max  
+        self.prediction_length_max = prediction_length_max
 
         if data is None and (sequences is None or prediction_lengths is None):
-            raise ValueError("Either data or sequences and prediction_lengths must be provided.")
+            raise ValueError(
+                "Either data or sequences and prediction_lengths must be provided."
+            )
 
         # create the windows and prediction lengths for the dataset
         if sequences is None or prediction_lengths is None:
-            self.sequences, self.prediction_lengths = create_windows(data,
-                                                                     n=context_length,
-                                                                     s_min=prediction_length_min,
-                                                                     s_max=prediction_length_max
-                                                                     )
+            self.sequences, self.prediction_lengths = create_windows(
+                data,
+                n=context_length,
+                s_min=prediction_length_min,
+                s_max=prediction_length_max,
+            )
         self.sequences = torch.tensor(self.sequences, dtype=torch.float32)
-        self.prediction_lengths = torch.tensor(self.prediction_lengths, dtype=torch.long)
+        self.prediction_lengths = torch.tensor(
+            self.prediction_lengths, dtype=torch.long
+        )
 
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, index):
-        x = self.sequences[index, self.prediction_length_max-self.prediction_lengths[index]:-self.prediction_lengths[index]]
-        y = self.sequences[index, -self.prediction_lengths[index]:]
+        x = self.sequences[
+            index,
+            self.prediction_length_max
+            - self.prediction_lengths[index] : -self.prediction_lengths[index],
+        ]
+        y = self.sequences[index, -self.prediction_lengths[index] :]
         pred_length = self.prediction_lengths[index]
 
         return x, y, pred_length
-    
+
 
 class TirexDataset_Fixed(Dataset):
     """
     Dataset class used for dataloaders.
     """
-    def __init__(self, 
+
+    def __init__(
+        self,
         data: pl.DataFrame = None,
-        context_length: int = 2048, 
+        context_length: int = 2048,
         prediction_length_min: int = 32,
         prediction_length_max: int = 1024,
         sequences: np.ndarray = None,
-        prediction_lengths: np.ndarray = None
-        ) -> None:
-        
+        prediction_lengths: np.ndarray = None,
+        mode="cpm",
+        patch_size=32,
+        cmax_mask=5,
+        pmax_mask=0.25,
+        cpm_stride=32,
+    ) -> None:
+
         super().__init__()
         self.sequences = sequences
         self.prediction_lengths = prediction_lengths
         self.context_length = context_length
         self.prediction_length_min = prediction_length_min
-        self.prediction_length_max = prediction_length_max  
+        self.prediction_length_max = prediction_length_max
 
         if data is None and (sequences is None or prediction_lengths is None):
-            raise ValueError("Either data or sequences and prediction_lengths must be provided.")
+            raise ValueError(
+                "Either data or sequences and prediction_lengths must be provided."
+            )
 
         # create the windows and prediction lengths for the dataset
         if sequences is None or prediction_lengths is None:
-            self.sequences, self.prediction_lengths = create_windows_fixed(data,
-                                                                     n=context_length,
-                                                                     s_min=prediction_length_min,
-                                                                     s_max=prediction_length_max
-                                                                     )
+            self.sequences, self.prediction_lengths = create_windows_fixed(
+                data,
+                n=context_length,
+                s_min=prediction_length_min,
+                s_max=prediction_length_max,
+                mode=mode,
+                patch_size=patch_size,
+                cmax_mask=cmax_mask,
+                pmax_mask=pmax_mask,
+                cpm_stride=cpm_stride,
+            )
         self.sequences = torch.tensor(self.sequences, dtype=torch.float32)
-        self.prediction_lengths = torch.tensor(self.prediction_lengths, dtype=torch.long)
+        self.prediction_lengths = torch.tensor(
+            self.prediction_lengths, dtype=torch.long
+        )
 
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, index):
-        x = self.sequences[index, :-self.prediction_lengths[index]]
-        y = self.sequences[index, -self.prediction_lengths[index]:]
+        x = self.sequences[index, : -self.prediction_lengths[index]]
+        y = self.sequences[index, -self.prediction_lengths[index] :]
         pred_length = self.prediction_lengths[index]
 
-        return x, y, pred_length    
+        return x, y, pred_length

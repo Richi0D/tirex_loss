@@ -3,7 +3,7 @@ name = "tirex-loss"
 version = "0.1.0"
 description = "This research explores different Loss functions on the TiRex Model and Architecture."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12, <3.13"
 dependencies = [
     "torch",
     "torchvision",
@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "altair>=6.1.0",
     "pyarrow>=24.0.0",
+    "tirex-ts[cuda,gluonts,hfdataset]",
 ]
 
 

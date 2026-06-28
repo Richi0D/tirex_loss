@@ -58,3 +58,29 @@ After running it you should have three CSV files.
 - **data/train.csv:** Contain all the training data used.
 - **data/test.csv:** Contain all the test and validation data used.
 - **data/description_sequences.csv:** Additional information to each sequence.
+
+### 5. Trained Models
+Due to file size restrictions on GitHub, the trained models must be downloaded separately.
+
+Please download the ZIP file below and extract its contents into your local `models/` directory. The archive includes all training checkpoints, evaluation results, and the PyTorch model files (`.pt`/`.pth`) for each architecture.
+
+* **[Download Trained Models ZIP](INSERT_LINK_HERE)**
+
+#### Directory Structure After Extraction
+* best_model: model with the best test loss.
+* last_model: model after the last epoch.
+
+Once extracted, ensure your directory tree looks like this:
+```text
+project-root/
+└── models/
+    ├── model_1/
+    │   ├── best_model.pth
+    │   ├── last_model.pth    
+    │   ├── scores.json
+    │   └── ...
+    └── model_2/
+        ├── best_model.pth
+        ├── last_model.pth        
+        ├── scores.json
+        └── ...

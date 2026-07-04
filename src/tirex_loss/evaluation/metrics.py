@@ -74,6 +74,41 @@ def symmetric_mean_absolute_percentage_error(
     return np.average(output_errors)
 
 
+def quantile_loss(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    quantiles: list,
+    multioutput: str = 'raw_values',
+) -> np.ndarray:
+    """
+    Calculates the (pinball) quantile loss.
+
+    y_true: shape (n_samples, n_targets)
+    y_pred: shape (n_samples, n_targets, n_quantiles)
+    quantiles: list of floats (e.g., [0.1, 0.2, ..., 0.9])
+    """
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    q = np.asarray(quantiles, dtype=float).reshape(1, 1, -1)
+
+    if y_true.shape != y_pred.shape[:-1]:
+        raise ValueError(
+            f"y_true shape {y_true.shape} must match y_pred shape "
+            f"{y_pred.shape} without the quantile dimension"
+        )
+
+    diff = y_true[..., np.newaxis] - y_pred  # shape: (n_samples, n_targets, n_quantiles)
+    ql = np.maximum(q * diff, (q - 1) * diff)
+
+    # average over quantiles, then over samples -> shape (n_targets,)
+    ql_per_sample = ql.mean(axis=-1)
+    output_errors = np.average(ql_per_sample, axis=0)
+
+    if multioutput == "raw_values":
+        return output_errors
+    return np.average(output_errors)
+
+
 def calculate_quantile_reliability(
     y_true: np.ndarray, 
     y_pred: np.ndarray, 
@@ -233,6 +268,7 @@ def score_data(y_true, y_pred, y_train, quantiles,
     score_mase = mean_absolute_scaled_error(y_true, mean_pred, y_train, multioutput=multioutput)
     score_r2 = r2_score(y_true, mean_pred, multioutput=multioutput)
     score_wis = calculate_wis_from_quantiles(y_true, y_pred, quantiles)
+    score_quantile = quantile_loss(y_true, y_pred, quantiles, multioutput=multioutput)
 
     if log_scores:
         if feature_names is None:
@@ -248,7 +284,8 @@ def score_data(y_true, y_pred, y_train, quantiles,
                 "smape_mean": float(np.mean(score_smape)),
                 "mase_mean": float(np.mean(score_mase)),
                 "r2_mean": float(np.mean(score_r2)),
-                "wis_mean": score_wis
+                "wis_mean": score_wis,
+                "quantile_loss_mean": float(np.mean(score_quantile))
             },
             "per_feature": []
         }
@@ -259,12 +296,13 @@ def score_data(y_true, y_pred, y_train, quantiles,
                     "smape": float(score_smape[i]),
                     "mase": float(score_mase[i]),
                     "r2": float(score_r2[i]),
+                    "quantile_loss": float(score_quantile[i])
                 }
             )
 
         print_lines = []
         for i, y_name in enumerate(feature_names):
-            print_lines.append(f'Prefix: {log_prefix} | Feature: {y_name} | SMAPE: {score_smape[i]:.4f} | MASE: {score_mase[i]:.4f} | r2: {score_r2[i]:.4f} | WIS: {score_wis:.4f}')
+            print_lines.append(f'Prefix: {log_prefix} | Feature: {y_name} | SMAPE: {score_smape[i]:.4f} | MASE: {score_mase[i]:.4f} | r2: {score_r2[i]:.4f} | WIS: {score_wis:.4f} | Quantile Loss: {score_quantile[i]:.4f}')
             print(print_lines[-1])
         
         # write JSON file
@@ -275,4 +313,4 @@ def score_data(y_true, y_pred, y_train, quantiles,
             with open(full_path, "w") as f:
                 json.dump(results, f, indent=2)
 
-    return score_smape, score_mase, score_r2, score_wis
+    return score_smape, score_mase, score_r2, score_wis, score_quantile

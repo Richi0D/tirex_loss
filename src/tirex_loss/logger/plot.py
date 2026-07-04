@@ -24,7 +24,7 @@ def plot_training_curves(metrics: Dict, width: int = 700, height: int = 400,
     chart_lr = alt.Chart(epoch_df.unpivot(on=['learning_rate'], index='epoch')).mark_line(point=True, strokeDash=[4, 4]).encode(
         x=alt.X('epoch:Q', title='Epoch'),
         y=alt.Y('value:Q', axis=alt.Axis(title='Learning rate', orient='right')),
-        color=alt.Color('variable:N', title='Metric',
+        color=alt.Color('variable:N', title='Learning Rate',
                          scale=alt.Scale(domain=['learning_rate'], range=['#bbbbbb'])),
         tooltip=['epoch:Q', 'value:Q', 'variable:N'],
         opacity=alt.value(0.6),

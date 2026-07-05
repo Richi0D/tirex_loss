@@ -282,25 +282,61 @@ Space for your introduction.
 \section{Methods and Experiments}
 \label{sec:methods}
 
+This section describes all the methods, experiments and modifications to the TiRex model by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}.
+
 \subsection{Training and Test data}
 \label{sec:data}
-For this work all the datasets collected are located in the energy domain. 
+For this work all the datasets collected are located in the energy domain. The datasets contain various time series with different intervals in the range from 5 minutes to 60 minutes. 
 
 \begin{itemize}[]
-	\item Electricity consumption from a single household of 2 Persons in Austria. Collected from the household meter. The timeseries has a interval of 15 minutes and holds around 100k timestamps.
+	\item Electricity consumption from a single household of 2 Persons in Austria. Collected from the household meter. The time series has a interval of 15 minutes and holds around 100k timestamps.
 	\item OPSD Time Series (Europe) \cite{opsd}: Energy load, energy generation and prices from 32 European countries. Only the stacked 15 and 60 minutes dataset is used.
-	\item Open energy hub \cite{openenergyhub}: Renewable Energy and Electricity Demand Time Series Dataset with Exogenous Variables at 5-minute Interval. Only production and demand columns are used.
+	\item Open energy hub \cite{openenergyhub}: Renewable energy and electricity demand time series dataset with exogenous variables at 5-minute interval. Only production and demand columns are used.
 	\item FETS Dataset \cite{obermeier_2026_19418721}: Contains time series from the European and international energy domain.
 \end{itemize}
 
 The single sources where combined to a single dataset which holds in total 361 different series. For each of this series 20\% of last timesteps are removed for testing and evaluation. And the other 80\% are reserved for training tasks. In total there are around 20 Million timesteps for training and around 5 Million timesteps for testing and evaluation. But due to computational limitations only a part of the dataset is used. To train and evaluate the custom tirex model only 72 (20\%) of the 361 series are used. Further, for fine-tune the TiRex foundation model only a single time series "DE Power - Load DE" from the FETS Dataset \cite{obermeier_2026_19418721} is used, which has 5 years of data in a 15 minute interval (around 200k timesteps). 
 
+\subsection{Loss functions}
+\label{sec:loss}
+
+The following three loss functions are selected to explore different loss functions in the TiRex setting.
+ 
+\begin{itemize}[]
+	\item Quantile Loss: with $Q$ the quantile levels, $y_t$ the true value at time $t$, $\hat{y}_t^q$ the quantile prediction for quantile level $q$, and $h$ the forecast horizon.
+	\begin{equation}
+		L = \frac{1}{|Q| \cdot h} \sum_{t=1}^{h} \sum_{q \in Q} 
+		\begin{cases} 
+			q (y_t - \hat{y}_t^q) & \text{if } \hat{y}_t^q \le y_t \\
+			(1 - q) (\hat{y}_t^q - y_t) & \text{otherwise.}
+		\end{cases}
+	\end{equation}
+
+	\item Mean squared error (MSE): with $q=0.5$ (median) the fixed quantile.
+	\begin{equation}
+		MSE = \frac{1}{h} \sum_{t=1}^{h} (y_t - \hat{y}_t^q)^2
+	\end{equation}	
+	
+	\item L1 Loss (MAE): with $q=0.5$ (median) the fixed quantile.
+	\begin{equation}
+		L1 = \frac{1}{h} \sum_{t=1}^{h}  |y_t - \hat{y}_t^q|
+	\end{equation}	
+\end{itemize}
+
 
 \subsection{Autoregressive}
 \label{sec:autoregressive}
 
-\subsection{Custom Tirex model}
+A first look was given to the generation method of the predictions or so called multi-patch prediction. The TiRex foundation model by  \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong} has a context length $c$ of 2048 and predict the next patch with output patch length of 32. If the forecast horizon $h$ exceeds the output patch length, multiple patches must be predicted. So for a given time series with length $n$ and a forecast horizon $h>32$ the TiRex model is using the last $c$ time steps of $n$, shift the context $c$ by the output patch length and concatenate the previous predicted patch as missing values. So as longer the forecast horizon $h$ gets, less and less context the model will have. If $h>c$ the context window is filled with zeros and the model predict only zeros.
+
+Other existing pre-trained models (\citeauthor{das2024decoderonlyfoundationmodeltimeseries}~\cite{das2024decoderonlyfoundationmodeltimeseries}; \citeauthor{ansari2024fast}~\cite{ansari2024fast}) address this via autoregressive generation, using point estimates like mean or median. So the forecast generation method in the TiRex model was modified to autoregressive generation using the median from the previous predicted patch and concatenate the values to the context $c$ instead of missing values.
+
+The pre-trained TiRex model was fine-tuned on a single time series "DE Power - Load DE" from the FETS Dataset. With both the original behavior and the autoregressive method on all three loss function mentioned in \ref{sec:loss}. It was fine-tuned by taking sequences with random predictions lengths between 32 and 128 and passing it through the prediction function. In this function a multi-patch prediction is created and the loss is computed against the true values.
+
+\subsection{Custom TiRex model}
 \label{sec:custom_tirex}
+
+Since limited computational resources 
 
 \subsubsection{CPM}
 \label{sec:cpm}
@@ -333,12 +369,14 @@ In addition to sMAPE, the quantile (pinball) loss is used to get a measure of th
 	QL_\tau(y, \hat{y}_\tau) = \max\big(\tau \cdot (y - \hat{y}_\tau),\ (\tau - 1) \cdot (y - \hat{y}_\tau)\big)
 	\label{eq:quantile_loss}
 \end{align}
-The overall quantile loss is obtained by averaging $QL_\tau$ over all evaluated quantile levels $\tau \in \{\tau_1, \dots, \tau_K\}$.
+The overall quantile loss is obtained by averaging $QL_\tau$ over all evaluated quantile levels $\tau \in \{\tau_1, \dots, \tau_K\}$ and over all time steps $t$.
 
 
 \subsection{Autoregressive}
 \label{sec:autoregressive_results}
 
+\subsection{CPM}
+\label{sec:cpm_results}
 
 \subsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm_results}

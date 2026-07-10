@@ -155,6 +155,7 @@
 \usepackage{amsfonts}
 \usepackage{subfigure}
 %\usepackage{acronym}
+\usepackage{threeparttable}
 
 %% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,7 +177,7 @@
 %% 
 
 %% Command \title{title}: sets the title of your report
-\title{TiRex with different Loss functions and Autoregressive generation method}
+\title{TiRex with different loss functions and autoregressive generation method}
 
 %% Command \titleshort{short title}: sets an abbreviated version of the report title for page heads
 %\titleshort{Optional space for your abbreviated title}
@@ -284,6 +285,24 @@ Space for your introduction.
 
 This section describes all the methods, experiments and modifications to the TiRex model by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}.
 
+For all fine-tuning and training tasks, an AdamW (\citeauthor{loshchilov2019decoupledweightdecayregularization}~\cite{loshchilov2019decoupledweightdecayregularization}) optimizer is used. See \autoref{tab:tirex_hyperparameters_transposed} for hyperparameter settings.
+
+\begin{table}[htbp]
+	\centering
+	\caption{Hyperparameter configurations for TiRex model variants.}
+	\label{tab:tirex_hyperparameters_transposed}
+	\begin{tabular}{lcc}
+		\toprule
+		\textbf{Hyperparameter} & \textbf{Fine-tuned (Pre-trained)} & \textbf{Custom Model} \\
+		\midrule
+		Learning Rate     & $1 \times 10^{-4}$ & $1 \times 10^{-4}$ \\
+		Weight Decay      & $1 \times 10^{-5}$ & $1 \times 10^{-2}$ \\
+		Gradient Clipping & None               & Max Norm: 1.0 \\
+		LR Scheduler      & ExponentialLR ($\gamma = 0.99$) & ExponentialLR ($\gamma = 0.99$) \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
 \subsection{Training and Test data}
 \label{sec:data}
 For this work all the datasets collected are located in the energy domain. The datasets contain various time series with different intervals in the range from 5 minutes to 60 minutes. 
@@ -336,14 +355,26 @@ The pre-trained TiRex model was fine-tuned on a single time series "DE Power - L
 \subsection{Custom TiRex model}
 \label{sec:custom_tirex}
 
-Since limited computational resources 
+Due to limited computational resources the TiRex model was cut from around 35 Million Parameters to 1.6 Million Parameters with a custom implementation. It is using the same architecture but the hidden sizes are reduced by half, only one sLSTM block is used instead of 12 and the context length is reduced to 1024 which is exactly the half of the pre-trained TiRex model.
+
+The custom TiRex model was trained in various variants with all loss functions from \autoref{sec:loss}. See following \autoref{sec:cpm} and \autoref{sec:xlstm_vs_lstm} for details on the variants.
 
 \subsubsection{CPM}
 \label{sec:cpm}
 
+There are two different dataloader strategies implemented for training. First, Contiguous Patch Masking as described in the TiRex paper from \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong} is implemented and second, a simplified "shift" method which replicate the mutli-patch prediction of the TiRex model. The shift method takes a sequence of length $n$ plus target length $s$ and creates a input sequence by shifting the context by $s$ and pad the shift $s$ with missing values. As target the last patch is used to compute the loss. This is done for all multiplies of patch size 32 in $s$ ($s_{\text{shift}}=[32, 64, 96, 128, \dots, 512]$). The shift method is illustrated in \autoref{fig:shift}. The maximum shift was defined as $s_{\max} = 512$ (half of the context length). 
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/shift.png}
+	\caption{Illustration of shift method for dataloader strategy.}
+	\label{fig:shift}
+\end{figure}
+
 \subsubsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm}
 
+An additional point of interest was the effect of replacing the xLSTM layer (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}) by a LSTM layer (\citeauthor{LSTM}~\cite{LSTM}). The rest of the architecture was kept the same.
 
 \section{Results}
 \label{sec:results}
@@ -415,9 +446,114 @@ Space for your summary, central conclusions, and an outlook on potential future 
 \section{An Appendix}
 \label{app:an-appendix}
 
-Space for an appendix.
-You can have more than one appendix section.
-Appendices are, of course, optional.
+\subsection{Train and Test Losses, Custom TiRex on big dataset}
+\label{sec:losses_custom_tirex_full}
+
+\begin{table}[htbp]
+	\centering
+	\begin{threeparttable}
+	\caption{Evaluation scores (big dataset)}
+	\label{tab:scores_custom_tirex_full}
+	\begin{tabular}{lllcccc}
+		\toprule
+		& & & \multicolumn{2}{c}{\textbf{SMAPE Score}} & \multicolumn{2}{c}{\textbf{Quantile Score}} \\
+		\cmidrule(lr){4-5} \cmidrule(lr){6-7}
+		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Autoregressive} & \textbf{Original} & \textbf{Autoregressive} & \textbf{Original} \\
+		\midrule
+		cpm & lstm & l1         & 0.5610 & \cellcolor[HTML]{fdfebc}0.5496 & -  & -  \\
+		cpm & lstm & mse        & \cellcolor[HTML]{fdfebc}0.5436 & 0.5610 & -  & -  \\
+		cpm & lstm & quantile   & 0.6825 & 0.6799 & 11.4729 & 12.4072 \\
+		\addlinespace
+		cpm & slstm & l1        & 0.5905 & \cellcolor[HTML]{fdfebc}0.5697 & -  & -  \\
+		cpm & slstm & mse       & \cellcolor[HTML]{fdfebc}0.5553 & 0.5726 & -  & -  \\
+		cpm & slstm & quantile  & 0.6637 & 0.6795 & 11.5788 & 13.1078 \\
+		\addlinespace
+		shift & lstm & l1       & 0.6691 & 0.7104 & - & - \\
+		shift & lstm & mse      & \cellcolor[HTML]{fdfebc}0.5670 & \cellcolor[HTML]{fdfebc}0.5582 & -  & -  \\
+		shift & lstm & quantile & 0.6745 & 0.6866 & 11.9533 & 12.7776 \\
+		\addlinespace
+		shift & slstm & l1      & 0.6713 & 0.7691 & - & - \\
+		shift & slstm & mse     & \cellcolor[HTML]{fdfebc}0.6578 & 0.7180 & - & - \\
+		shift & slstm & quantile & 0.6720 & \cellcolor[HTML]{fdfebc}0.6888 & 11.8404 & 12.7920 \\
+		\midrule
+		TiRex & slstm & quantile  & 0.0326 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}0.0314 & 3.4218  & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1} 3.3193  \\
+		\bottomrule
+	\end{tabular}
+	\begin{tablenotes}
+		\small
+		\item[a] Lower scores indicate better predictive performance across both metrics.
+		\item \textbf{Note:} Last row is the original pre-trained TiRex Model.
+	\end{tablenotes}	
+	\end{threeparttable}
+\end{table}
+
+
+
+\begin{table}[htbp]
+	\centering
+	\caption{Train Losses - Custom TiRex (big dataset)}
+	\label{tab:losses_custom_tirex_full}
+	\begin{tabular}{llllrrr}
+		\toprule
+		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Test Loss}\\
+		\midrule
+		shift & slstm & quantile & 100 & 74.78 & 559.20 \\
+		shift & lstm  & quantile & 100 & 41.41 & 571.46 \\
+		cpm & slstm    & quantile & 100 & 42.21 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}308.27 \\
+		cpm & lstm     & quantile & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}29.07 & 322.94 \\
+		\midrule
+		shift & slstm & mse      & 100 & 2,901,915.03 & 4,634,443.72 \\
+		shift & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}46,591.36 & 9,396,074.49  \\
+		cpm & slstm    & mse      & 100 & 97,453.89 & 8,169,185.35  \\
+		cpm & lstm      & mse      & 100 & 59,365.80 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}7,820,493.16 \\
+		\midrule
+		shift & slstm & l1       & 100 & 1,246.28 & 1,534.37  \\
+		shift & lstm  & l1       & 100 & 1,002.50 & 1,388.01  \\
+		cpm & slstm    & l1       & 100 & 144.08 & 606.34 \\
+		cpm & lstm     & l1       & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}113.85 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}593.13 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=1.1\linewidth]{images/loss_custom_full.png}
+	\caption{Train Losses - Custom TiRex (big dataset)}
+	\label{fig:losses_custom_tirex_full}
+\end{figure}
+
+
+\subsection{Train and Test Losses, Custom TiRex on single sequence}
+\label{sec:losses_custom_tirex_single}
+
+\begin{table}[htbp]
+	\centering
+	\caption{Train Losses - Custom TiRex (single sequence)}
+	\label{tab:losses_custom_tirex_single}
+	\begin{tabular}{lllrrr}
+		\toprule
+		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Test Loss}\\
+		\midrule
+		shift & slstm & quantile & 100 & 504.15 & 576.95 \\
+		shift & lstm  & quantile & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}383.60 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}527.99 \\
+		\midrule
+		shift & slstm & mse      & 100 & 3,101,287.11 & 4,775,838.26 \\
+		shift & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,293,486.37 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}3,125,015.24  \\
+		\midrule
+		shift & slstm & l1       & 100 & 1,509.92 & 1,519.90  \\
+		shift & lstm  & l1       & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}974.00 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,384.28  \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=1.1\linewidth]{images/loss_custom_single.png}
+	\caption{Train Losses - Custom TiRex (single sequence)}
+	\label{fig:losses_custom_tirex_single}
+\end{figure}
+
 
 
 %% 

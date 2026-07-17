@@ -278,14 +278,18 @@ Space for your abstract.
 \section{Introduction}
 \label{sec:introduction}
 
-Space for your introduction.
+Accurate time series forecasting is a core requirement in many domains, such as load forecasting, renewable generation forecasting and price forecasting. Good forecasting methods support grid stability, resource planning and market operations. Traditionally, such forecasting problems have been addressed with statistical models or deep learning models trained from scratch for a specific dataset or task.
+
+Recently, time series foundation models, large models pre-trained on diverse collections of time series, have emerged as a promising alternative, offering zero-shot forecasting capability without task-specific training. TiRex (\citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}), a foundation model built on the xLSTM architecture (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}), is one such recent model and achieves strong zero-shot performance on general forecasting benchmarks. 
+
+This work investigates the TiRex model in the context of energy time series forecasting through several practical modifications and experiments: (i) fine-tuning the pre-trained model on energy data with different loss functions, (ii) comparing the model's original multi-patch forecasting behavior with an autoregressive generation strategy, (iii) training a strongly parameter-reduced custom variant of TiRex from scratch, (iv) comparing two dataloader masking strategies for training, and (v) comparing the xLSTM layer with a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of energy time series from household, national, and European sources. The remainder of this paper is structured as follows: \autoref{sec:methods} describes the data, methods, and experimental setup; \autoref{sec:results} presents and discusses the results; and \autoref{sec:conclusion} summarizes the findings and outlines directions for future work.
 
 \section{Methods and Experiments}
 \label{sec:methods}
 
 This section describes all the methods, experiments and modifications to the TiRex model by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}.
 
-For all fine-tuning and training tasks, an AdamW (\citeauthor{loshchilov2019decoupledweightdecayregularization}~\cite{loshchilov2019decoupledweightdecayregularization}) optimizer is used. See \autoref{tab:tirex_hyperparameters_transposed} for hyperparameter settings.
+For all fine-tuning and training tasks, an AdamW optimizer (\citeauthor{loshchilov2019decoupledweightdecayregularization}~\cite{loshchilov2019decoupledweightdecayregularization}) is used. See \autoref{tab:tirex_hyperparameters_transposed} for hyperparameter settings.
 
 \begin{table}[htbp]
 	\centering
@@ -303,27 +307,27 @@ For all fine-tuning and training tasks, an AdamW (\citeauthor{loshchilov2019deco
 	\end{tabular}
 \end{table}
 
-The pre-trained TiRex model is fine-tuned for a maximum of 15 epochs. The custom model is trained for a maximum of 100 Epochs. The main evaluations are done all on the models with the best test loss during training. This means some models trained longer than others. A separate evaluation between best and last test loss is done in \autoref{sec:best_vs_last_results}. Detailed Loss scores and plots are added in \autoref{app:an-appendix}.
+The pre-trained TiRex model is fine-tuned for a maximum of 15 epochs. The custom model is trained for a maximum of 100 epochs. All main evaluations use the model checkpoint with the best test loss during training, which means some models were effectively trained for fewer epochs than others. A separate comparison between the best and the last test loss is given in \autoref{sec:best_vs_last_results}. Detailed loss scores and plots are provided in \autoref{app:an-appendix}.
 
 \subsection{Training and Test data}
 \label{sec:data}
-For this work all the datasets collected are located in the energy domain. The datasets contain various time series with different intervals in the range from 5 minutes to 60 minutes. 
+All datasets used in this work are from the energy domain. They contain time series at various intervals ranging from 5 to 60 minutes. 
 
 \begin{itemize}[]
-	\item Electricity consumption from a single household of 2 Persons in Austria. Collected from the household meter. The time series has a interval of 15 minutes and holds around 100k timestamps.
-	\item OPSD Time Series (Europe) \cite{opsd}: Energy load, energy generation and prices from 32 European countries. Only the stacked 15 and 60 minutes dataset is used.
-	\item Open energy hub \cite{openenergyhub}: Renewable energy and electricity demand time series dataset with exogenous variables at 5-minute interval. Only production and demand columns are used.
-	\item FETS Dataset \cite{obermeier_2026_19418721}: Contains time series from the European and international energy domain.
+	\item Electricity consumption of a single two-person household in Austria, collected from the household meter. The time series has a 15-minute interval and contains around 100k timestamps.
+	\item OPSD Time Series (Europe)~\cite{opsd}: Energy load, energy generation, and price time series from 32 European countries. Only the stacked 15- and 60-minute datasets are used.
+	\item Open Energy Hub~\cite{openenergyhub}: A renewable energy and electricity demand dataset with exogenous variables at 5-minute intervals. Only the production and demand columns are used.
+	\item FETS Dataset~\cite{obermeier_2026_19418721}: Contains time series from the European and international energy domain.
 \end{itemize}
 
-The single sources where combined to a single dataset which holds in total 361 different series. For each of this series 20\% of last timesteps are removed for testing and evaluation. And the other 80\% are reserved for training tasks. In total there are around 20 Million timesteps for training and around 5 Million timesteps for testing and evaluation. But due to computational limitations only a part of the dataset is used. To train and evaluate the custom tirex model only 72 (20\%) of the 361 series are used. Further, for fine-tune the TiRex foundation model only a single time series "DE Power - Load DE" from the FETS Dataset \cite{obermeier_2026_19418721} is used, which has 5 years of data in a 15 minute interval (around 200k timesteps).
+These individual sources were combined into a single dataset containing 361 different series in total. For each series, the last 20\% of timestamps are held out for testing and evaluation, while the remaining 80\% are used for training. In total, this amounts to around 20 million timesteps for training and around 5 million timesteps for testing and evaluation. However, due to computational limitations, only a subset of the full dataset is used in practice: to train and evaluate the custom TiRex model, only 72 (20\%) of the 361 series are used. For fine-tuning the pre-trained TiRex foundation model, only a single time series, "DE Power - Load DE" from the FETS Dataset~\cite{obermeier_2026_19418721}, is used, which contains 5 years of data at a 15-minute interval (around 200k timesteps).
 
-For all the random splits a fixed seed for all experiments is used, to make everything deterministic. Which makes it possible to compare the different models on the same test dataset.
+A fixed random seed is used across all experiments to make the data splits deterministic and reproducible, which allows the different models to be compared on the exact same test dataset.
 
 \subsection{Loss functions}
 \label{sec:loss}
 
-The following three loss functions are selected to explore different loss functions in the TiRex setting.
+Three loss functions are used to explore their effect in the TiRex setting.
  
 \begin{itemize}[]
 	\item Quantile Loss: with $Q$ the quantile levels, $y_t$ the true value at time $t$, $\hat{y}_t^q$ the quantile prediction for quantile level $q$, and $h$ the forecast horizon.
@@ -335,12 +339,12 @@ The following three loss functions are selected to explore different loss functi
 		\end{cases}
 	\end{equation}
 
-	\item Mean squared error (MSE): with $q=0.5$ (median) the fixed quantile.
+	\item Mean squared error (MSE): with $q=0.5$ (median) as the fixed quantile.
 	\begin{equation}
 		MSE = \frac{1}{h} \sum_{t=1}^{h} (y_t - \hat{y}_t^q)^2
 	\end{equation}	
 	
-	\item L1 Loss (MAE): with $q=0.5$ (median) the fixed quantile.
+	\item L1 Loss (MAE): with $q=0.5$ (median) as the fixed quantile.
 	\begin{equation}
 		L1 = \frac{1}{h} \sum_{t=1}^{h}  |y_t - \hat{y}_t^q|
 	\end{equation}	
@@ -350,25 +354,26 @@ The following three loss functions are selected to explore different loss functi
 \subsection{Autoregressive}
 \label{sec:autoregressive}
 
-A first look was given to the generation method of the predictions or so called multi-patch prediction. The TiRex foundation model by  \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong} has a context length $c$ of 2048 and predict the next patch with output patch length of 32. If the forecast horizon $h$ exceeds the output patch length, multiple patches must be predicted. So for a given time series with length $n$ and a forecast horizon $h>32$ the TiRex model is using the last $c$ time steps of $n$, shift the context $c$ by the output patch length and concatenate the previous predicted patch as missing values. So as longer the forecast horizon $h$ gets, less and less context the model will have. If $h>c$ the context window is filled with zeros and the model predict only zeros.
+A first look was given to the generation method of the predictions or so called multi-patch prediction. The TiRex foundation model by  \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong} has a context length $c$ of 2048 and predicts the next patch with output patch length of 32. If the forecast horizon $h$ exceeds the output patch length, multiple patches must be predicted. For a given time series with length $n$ and a forecast horizon $h>32$ the TiRex model uses the last $c$ timesteps of $n$, shifts the context window $c$ by the output patch length and appends the previously predicted patch as missing (NaN) values. So, as longer the forecast horizon $h$ gets, the less real context the model has available. If $h>c$ the context window is eventually filled entirely with zeros and the model predicts only zeros.
 
-Other existing pre-trained models (\citeauthor{das2024decoderonlyfoundationmodeltimeseries}~\cite{das2024decoderonlyfoundationmodeltimeseries}; \citeauthor{ansari2024fast}~\cite{ansari2024fast}) address this via autoregressive generation, using point estimates like mean or median. So the forecast generation method in the TiRex model was modified to autoregressive generation using the median from the previous predicted patch and concatenate the values to the context $c$ instead of missing values.
+Other existing pre-trained models (\citeauthor{das2024decoderonlyfoundationmodeltimeseries}~\cite{das2024decoderonlyfoundationmodeltimeseries}; \citeauthor{ansari2024fast}~\cite{ansari2024fast}) address this issue via autoregressive generation, using point estimates such as the mean or median. Therefore the forecast generation method of the TiRex model is modified to use autoregressive generation: instead of inserting missing values, the median of the previously predicted patch is concatenated to the context $c$.
 
-The pre-trained TiRex model was fine-tuned on a single time series "DE Power - Load DE" from the FETS Dataset. With both the original behavior and the autoregressive method on all three loss function mentioned in \autoref{sec:loss}. It was fine-tuned by taking sequences with random predictions lengths between 32 and 128 and passing it through the prediction function. In this function a multi-patch prediction is created and the loss is computed against the true values.
+The pre-trained TiRex model was fine-tuned on a single time series, "DE Power - Load DE" from the FETS Dataset, using both the original behavior and the autoregressive method, across all three loss functions described in \autoref{sec:loss}. Fine-tuning was performed by sampling sequences with random prediction lengths between 32 and 128 and passing them through the prediction function, in which a multi-patch prediction is generated and the loss is computed against the true values.
 
 \subsection{Custom TiRex model}
 \label{sec:custom_tirex}
 
-Due to limited computational resources the TiRex model was cut from around 35 Million Parameters to 1.6 Million Parameters with a custom implementation. It is using the same architecture but the hidden sizes are reduced by half, only one sLSTM block is used instead of 12 and the context length is reduced to 1024 which is exactly the half of the pre-trained TiRex model.
+Due to limited computational resources, the TiRex model was reduced from around 35 million parameters to 1.6 million parameters via a custom implementation. It uses the same architecture, but with hidden sizes reduced by half, a single sLSTM block instead of 12, and a context length reduced to 1024, exactly half that of the pre-trained TiRex model.
 
-The custom TiRex model was trained in various variants with all loss functions from \autoref{sec:loss}. See following \autoref{sec:cpm} and \autoref{sec:xlstm_vs_lstm} for details on the variants.
+The custom TiRex model was trained in various variants, using all loss functions from \autoref{sec:loss}. See \autoref{sec:cpm} and \autoref{sec:xlstm_vs_lstm} for details on the individual variants.
 
-As dataset two variants where used to train the custom model. A bigger dataset with 72 time series and the single series "DE Power - Load DE" as described in \autoref{sec:data} to have a comparison to the fine-tuned TiRex model. For the single series training the "shift" dataloader method is used as described in \autoref{sec:cpm}.
+Two dataset variants were used to train the custom model: a larger dataset with 72 time series, and the single series "DE Power - Load DE" described in \autoref{sec:data}, the latter enabling a direct comparison with the fine-tuned TiRex model. For training on the single series, the "shift" dataloader method described in \autoref{sec:cpm} is used.
 
 \subsubsection{CPM}
 \label{sec:cpm}
+ 
+Two different dataloader strategies are implemented for training. The first is Contiguous Patch Masking (CPM), as described in the TiRex paper by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}. The second is a simplified "shift" method, which replicates the multi-patch prediction behavior of the TiRex model. The shift method takes a sequence of length $n$ plus a target length $s$ and creates an input sequence by shifting the context by $s$ and padding the shifted region with missing values. The last patch is used as the target to compute the loss. This is repeated for all multiples of the patch size 32 up to $s$ ($s_{\text{shift}}=[32, 64, 96, 128, \dots, 512]$). The shift method is illustrated in \autoref{fig:shift}. The maximum shift is defined as $s_{\max} = 512$ (half of the context length).
 
-There are two different dataloader strategies implemented for training. First, Contiguous Patch Masking as described in the TiRex paper from \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong} is implemented and second, a simplified "shift" method which replicate the mutli-patch prediction of the TiRex model. The shift method takes a sequence of length $n$ plus target length $s$ and creates a input sequence by shifting the context by $s$ and pad the shift $s$ with missing values. As target the last patch is used to compute the loss. This is done for all multiplies of patch size 32 in $s$ ($s_{\text{shift}}=[32, 64, 96, 128, \dots, 512]$). The shift method is illustrated in \autoref{fig:shift}. The maximum shift was defined as $s_{\max} = 512$ (half of the context length). 
 
 \begin{figure}[htbp]
 	\centering
@@ -380,10 +385,15 @@ There are two different dataloader strategies implemented for training. First, C
 \subsubsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm}
 
-An additional point of interest was the effect of replacing the xLSTM layer (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}) by a LSTM layer (\citeauthor{LSTM}~\cite{LSTM}). The rest of the architecture was kept the same.
+An additional point of interest is the effect of replacing the xLSTM layer (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}) with an LSTM layer (\citeauthor{LSTM}~\cite{LSTM}), while keeping the rest of the architecture unchanged.
+
 
 \section{Results}
 \label{sec:results}
+
+This section presents the results of the experiments described in \autoref{sec:methods}. \autoref{tab:scores_custom_tirex_full} shows the scores for the models trained on the dataset of 72 series, and \autoref{tab:scores_custom_tirex_single} shows the scores for the custom TiRex model and the fine-tuned TiRex model trained on a single sequence. Comparing SMAPE scores within each individual group, the MSE loss performs best in all cases, while the quantile loss performs worst in every group. One possible explanation is that the quantile loss requires the model to learn across all quantiles simultaneously, rather than concentrating on a single target value.
+
+The scores for the L1 and MSE loss variants of the pre-trained model do not provide meaningful insights, since these variants did not train well; this is also visible in the loss curves in \autoref{app:an-appendix}.
 
 \begin{table}[htbp]
 	\centering
@@ -419,7 +429,7 @@ An additional point of interest was the effect of replacing the xLSTM layer (\ci
 		\end{tabular}
 		\begin{tablenotes}
 			\small
-			\item[a] Lower scores indicate better predictive performance across both metrics.
+			\item[a] Lower scores indicate better predictive performance across both metrics. Best score overall is marked in green and best score for each variant is marked in yellow.
 		\end{tablenotes}	
 	\end{threeparttable}
 \end{table}
@@ -459,7 +469,7 @@ An additional point of interest was the effect of replacing the xLSTM layer (\ci
 		\end{tabular}
 		\begin{tablenotes}
 			\small
-			\item[a] Lower scores indicate better predictive performance across both metrics.
+			\item[a] Lower scores indicate better predictive performance across both metrics. Best score overall is marked in green and best score for each variant is marked in yellow.
 		\end{tablenotes}	
 	\end{threeparttable}
 \end{table}
@@ -468,7 +478,7 @@ An additional point of interest was the effect of replacing the xLSTM layer (\ci
 \subsection{Metrics}
 \label{sec:metrics}
 
-To compare the different methods and experiments, two main metrics are used. The symmetric mean absolute percentage error (sMAPE) and the quantile loss. The sMAPE uses only the 50\% (median) of the model output to score against the target values while the quantile loss uses all quantile predictions. For methods that do not have any quantile predictions, only the sMAPE is used.
+Two main metrics are used to compare the different methods and experiments: the symmetric mean absolute percentage error (sMAPE) and the quantile loss. The sMAPE uses only the 50\% (median) quantile of the model output to score against the target values, while the quantile loss uses all quantile predictions. For methods that do not produce quantile predictions, only the sMAPE is used.
 
 \subsubsection{sMAPE}
 \label{sec:smape}
@@ -477,11 +487,11 @@ As a general score the symmetric mean absolute percentage error (sMAPE) is used.
 	\text{SMAPE} &= \dfrac{2}{n} \sum_{t=1}^{n} \dfrac{|F_t - A_t|}{|A_t| + |F_t|}
 	\label{eq:smape}
 \end{align}
-where $t$ is the timestep, $A_t$ the actual values and $F_t$ the forecasted values, which in our case is either the model prediction for a single output value or the median for quantile predictions. The advantage of the symmetric version is that it avoids exploding values when the actuals are close to zero and over and under-forecasts are treated in a relative way. 
+where $t$ is the timestep, $A_t$ the actual values and $F_t$ the forecasted values, which in our case is either the model prediction for a single output value or the median of the quantile predictions. The advantage of the symmetric version is that it avoids exploding values when the actuals are close to zero and it treats over- and under-forecasts in a relative, symmetric way.
 
 \subsubsection{Quantile Loss}
 \label{sec:quantile_loss}
-In addition to sMAPE, the quantile (pinball) loss is used to get a measure of the individual quantile predictions. For a given quantile level $\tau \in (0,1)$, the quantile loss for a single observation $y$ and its corresponding predicted quantile $\hat{y}_\tau$ is defined as:
+In addition to sMAPE, the quantile (pinball) loss is used to measure the quality of the individual quantile predictions. For a given quantile level $\tau \in (0,1)$, the quantile loss for a single observation $y$ and its corresponding predicted quantile $\hat{y}_\tau$ is defined as:
 \begin{align}
 	QL_\tau(y, \hat{y}_\tau) = \max\big(\tau \cdot (y - \hat{y}_\tau),\ (\tau - 1) \cdot (y - \hat{y}_\tau)\big)
 	\label{eq:quantile_loss}
@@ -492,14 +502,32 @@ The overall quantile loss is obtained by averaging $QL_\tau$ over all evaluated 
 \subsection{Autoregressive}
 \label{sec:autoregressive_results}
 
+As shown in \autoref{tab:scores_custom_tirex_full} and \autoref{tab:scores_custom_tirex_single}, the autoregressive method scores slightly better in most experiments. Only the original pre-trained TiRex model scores better with its original NaN-filling behavior (inserting missing values into the shifted context instead of the median prediction) for multi-patch prediction. As shown in \autoref{fig:autoregressive_compare}, especially for very long prediction lengths that exceed the model's context length, the autoregressive behavior still produces values that fit the ground truth well. The original behavior, in contrast, suffers from the problem that for long prediction horizons, known past values are gradually shifted out of the model's context until only null values remain. The autoregressive behavior, on the other hand, suffers from quantile collapse: as shown in \autoref{fig:autoregressive_compare_short}, after the second patch (timestep $>$ 32), once predictions from the previous step become part of the context, the quantiles get noticeably worse compared to the original behavior.
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=1.0\linewidth]{images/autoreg_compare.png}
+	\caption{Comparison of autoregressive behavior vs. nan-filling method.}
+	\label{fig:autoregressive_compare}
+\end{figure}
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=1.0\linewidth]{images/autoreg_compare_short.png}
+	\caption{Comparison of autoregressive behavior vs. nan-filling method. On prediction length $h=192$.}
+	\label{fig:autoregressive_compare_short}
+\end{figure}
+
 \subsection{CPM}
 \label{sec:cpm_results}
+CPM has a large impact on training and clearly improves model performance: all CPM scores in \autoref{tab:scores_custom_tirex_full} are better than those of the proposed shift strategy. The models evidently learn better when trained with randomly scattered masked patches (CPM) than with a single, large masked block near the end of the sequence (shift). It appears that the shift strategy removes too much information from the context at once, making the task considerably harder to learn from.
 
 \subsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm_results}
+Interestingly, in both \autoref{tab:scores_custom_tirex_full} and \autoref{tab:scores_custom_tirex_single}, the LSTM layer performs slightly better than the sLSTM layer. This could also be a training-related artifact, since the same hyperparameters were used for both variants and may not be equally well suited to each; alternatively, the LSTM layer may simply be easier to train than the sLSTM layer in this setting.
 
 \subsection{Best vs. Last Test Loss}
 \label{sec:best_vs_last_results}
+In general, only the model checkpoint with the best test loss is used for evaluation. However, since all models are trained for the full 100 epochs, scores for the fully trained (last-epoch) models are also available and are shown in \autoref{tab:scores_custom_tirex_best_last}. These results show that it is generally better to use the checkpoint with the best test loss. Interestingly, they also show that quantile predictions tend to improve the longer the model is trained. A somewhat counterintuitive result that would benefit from further investigation.
 
 \begin{table}[htbp]
 	\centering
@@ -541,9 +569,19 @@ The overall quantile loss is obtained by averaging $QL_\tau$ over all evaluated 
 
 \section{Conclusion}
 \label{sec:conclusion}
+This work explored several modifications to the TiRex time series foundation model, covering the choice of loss function, the forecast generation strategy, a strongly parameter-reduced custom model, the dataloader masking strategy, and the choice of recurrent layer.
 
-Space for your summary, central conclusions, and an outlook on potential future work.
+Across all experiments, MSE loss consistently produced the best SMAPE scores, while quantile loss consistently performed worst, likely because it requires the model to fit an entire predictive distribution rather than a single target value. Switching from the original NaN-filling multi-patch generation to autoregressive generation improved performance in most settings, and was particularly beneficial for forecast horizons exceeding the model's context length, where the original method degrades as known values are pushed out of context. This benefit came at the cost of quantile collapse over successive autoregressive steps. A combination of both methods could benefit the predictions, specially if the prediction length is long. For shorter prediction lengths the standard multi-patch generation could be used and after a certain prediction length is reached, the model could switch to autoregressive generation.
 
+For the training data strategy, Contiguous Patch Masking (CPM) clearly outperformed the simpler "shift" method, suggesting that exposing the model to many small, randomly distributed masked regions during training is more effective than masking a single large block. Replacing the xLSTM layer with a standard LSTM layer led to a small but consistent improvement, though this may be an artifact of using identical hyperparameters for both variants rather than a general property of the two layer types. This should be further investigated.
+
+Finally, comparing checkpoints selected by best versus last test loss confirmed that early stopping on test loss is generally the right choice, but also revealed that quantile calibration keeps improving with additional training, suggesting that test loss and quantile quality do not always improve together.
+
+As expected, the strongly parameter-reduced custom TiRex model (1.6 million parameters) could not match the performance of the original 35-million-parameter pre-trained model. Nevertheless, the results demonstrate that a much smaller model, trained with a suitable masking strategy and loss function, can still learn meaningful forecasting behavior on time series, which is encouraging for applications where computational resources are constrained. Also, fine-tuning the foundation model on a single setting or sequence is the right choice if more precise results are necessary. 
+
+Several topics remain open for future work. First, the hyperparameters used for the LSTM/sLSTM comparison and for the custom model in general were not individually tuned; a dedicated hyperparameter search per configuration could clarify whether the observed differences reflect genuine architectural properties or training artifacts. Second, the quantile collapse observed under autoregressive generation warrants further investigation, for example by combining autoregressive point-forecast generation with the original quantile head, or by exploring hybrid generation strategies. Third, scaling up the custom model and the amount of training data, currently limited by computational resources, could help establish where the performance gap to the full pre-trained model narrows. Finally, evaluating the fine-tuned and custom models on time series outside the training distribution, would help assess how well the findings of this work generalize.
+
+Final note: During the course of this work, an improved version of the TiRex foundation model, TiRex-2 (\citeauthor{podest2026tirex2generalizingtirexmultivariate}~\cite{podest2026tirex2generalizingtirexmultivariate}), was released. TiRex-2 supports multivariate forecasting with past and future-known covariates, provides streaming capabilities, and achieves improved forecasting performance. Since it became available only after the experiments presented in this work had been completed, it was not included in the evaluation.
 
 
 %% 

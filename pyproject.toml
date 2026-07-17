@@ -20,6 +20,7 @@ dependencies = [
     "altair>=6.1.0",
     "pyarrow>=24.0.0",
     "tirex-ts[cuda,gluonts,hfdataset]",
+    "tirex-2"
 ]
 
 

@@ -156,6 +156,7 @@
 \usepackage{subfigure}
 %\usepackage{acronym}
 \usepackage{threeparttable}
+\usepackage{hyperref}
 
 %% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -261,7 +262,7 @@
 
 \addsec{Abstract}
 
-Space for your abstract.
+Time series foundation models promise strong zero-shot forecasting performance. This work investigates the TiRex foundation model. We compare three loss functions (quantile, MSE, L1), the model's original multi-patch forecasting behavior against an autoregressive generation strategy, and two dataloader masking strategies (Contiguous Patch Masking vs. a simplified "shift" method). We also train a strongly parameter-reduced custom TiRex variant (1.6 million vs. 35 million parameters) from scratch and compare an xLSTM layer against a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of household, national, and European energy time series. Results show that MSE loss consistently yields the best SMAPE scores, that autoregressive generation improves performance for long forecast horizons but induces quantile collapse, that CPM clearly outperforms the shift strategy, and that the LSTM layer performs slightly better than sLSTM under identical hyperparameters. While the custom, parameter-reduced model cannot match the pre-trained TiRex model's performance, it still learns meaningful forecasting behavior. However, fine-tuning the pre-trained model on a specific task or sequence yields a noticeably larger performance gain, suggesting that fine-tuning the existing foundation model is the more effective route compared to training a smaller custom model from scratch. The work can be found in the GitHub repository:  \url{https://github.com/Richi0D/tirex_loss}
 
 
 %% 
@@ -282,7 +283,7 @@ Accurate time series forecasting is a core requirement in many domains, such as 
 
 Recently, time series foundation models, large models pre-trained on diverse collections of time series, have emerged as a promising alternative, offering zero-shot forecasting capability without task-specific training. TiRex (\citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}), a foundation model built on the xLSTM architecture (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}), is one such recent model and achieves strong zero-shot performance on general forecasting benchmarks. 
 
-This work investigates the TiRex model in the context of energy time series forecasting through several practical modifications and experiments: (i) fine-tuning the pre-trained model on energy data with different loss functions, (ii) comparing the model's original multi-patch forecasting behavior with an autoregressive generation strategy, (iii) training a strongly parameter-reduced custom variant of TiRex from scratch, (iv) comparing two dataloader masking strategies for training, and (v) comparing the xLSTM layer with a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of energy time series from household, national, and European sources. The remainder of this paper is structured as follows: \autoref{sec:methods} describes the data, methods, and experimental setup; \autoref{sec:results} presents and discusses the results; and \autoref{sec:conclusion} summarizes the findings and outlines directions for future work.
+This work (\url{https://github.com/Richi0D/tirex_loss}) investigates the TiRex model in the context of energy time series forecasting through several practical modifications and experiments: (i) fine-tuning the pre-trained model on energy data with different loss functions, (ii) comparing the model's original multi-patch forecasting behavior with an autoregressive generation strategy, (iii) training a strongly parameter-reduced custom variant of TiRex from scratch, (iv) comparing two dataloader masking strategies for training, and (v) comparing the xLSTM layer with a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of energy time series from household, national, and European sources. The remainder of this paper is structured as follows: \autoref{sec:methods} describes the data, methods, and experimental setup; \autoref{sec:results} presents and discusses the results; and \autoref{sec:conclusion} summarizes the findings and outlines directions for future work.
 
 \section{Methods and Experiments}
 \label{sec:methods}

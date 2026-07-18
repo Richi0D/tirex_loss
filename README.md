@@ -64,7 +64,7 @@ Due to file size restrictions on GitHub, the trained models must be downloaded s
 
 Please download the ZIP file below and extract its contents into your local `models/` directory. The archive includes all training checkpoints, evaluation results, and the PyTorch model files (`.pt`/`.pth`) for each architecture.
 
-* **[Download Trained Models ZIP](INSERT_LINK_HERE)**
+* **[Download Trained Models ZIP](https://drive.google.com/file/d/1CamTuC_jn52l-22ddB8TBWHIwwhUfmGR/view?usp=sharing)**
 
 #### Directory Structure After Extraction
 * best_model: model with the best test loss.

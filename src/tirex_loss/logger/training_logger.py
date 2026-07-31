@@ -156,17 +156,21 @@ class TrainingLogger:
         summary = {
             'total_epochs': len(epoch_df),
             'best_train_loss': None,
-            'best_test_loss': None,
+            'best_val_loss': None,
             'final_train_loss': None,
-            'final_test_loss': None
+            'final_val_loss': None
         }
         
         if 'train_loss' in epoch_df.columns:
             summary['best_train_loss'] = float(epoch_df['train_loss'].min())
             summary['final_train_loss'] = float(epoch_df['train_loss'][-1])
         
-        if 'test_loss' in epoch_df.columns:
-            summary['best_test_loss'] = float(epoch_df['test_loss'].min())
-            summary['final_test_loss'] = float(epoch_df['test_loss'][-1])
+        if 'val_loss' in epoch_df.columns:
+            summary['best_val_loss'] = float(epoch_df['val_loss'].min())
+            summary['final_val_loss'] = float(epoch_df['val_loss'][-1])
+        elif 'test_loss' in epoch_df.columns:
+            # Backward compatibility with older logs that used `test_loss` as validation metric.
+            summary['best_val_loss'] = float(epoch_df['test_loss'].min())
+            summary['final_val_loss'] = float(epoch_df['test_loss'][-1])
         
         return summary

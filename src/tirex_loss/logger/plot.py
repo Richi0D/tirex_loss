@@ -12,7 +12,9 @@ def plot_training_curves(metrics: Dict, width: int = 700, height: int = 400,
     y_loss = alt.Y('value:Q', title='Loss',
                     scale=alt.Scale(domain=y_domain) if y_domain else alt.Undefined)
 
-    chart_loss = alt.Chart(epoch_df.unpivot(on=['train_loss', 'test_loss'], index='epoch')).mark_line(point=True).encode(
+    val_metric = 'val_loss' if 'val_loss' in epoch_df.columns else 'test_loss'
+
+    chart_loss = alt.Chart(epoch_df.unpivot(on=['train_loss', val_metric], index='epoch')).mark_line(point=True).encode(
         x=alt.X('epoch:Q', title='Epoch'),
         y=y_loss,
         color=alt.Color('variable:N', title='Metric', scale=alt.Scale(scheme='category10')),

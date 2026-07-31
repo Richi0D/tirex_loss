@@ -36,9 +36,9 @@ class Tirex_Trainer():
         self.log_path = log_path
         self.scheduler = None
         self.train_loader = None
-        self.test_loader = None
+        self.val_loader = None
         self.lr_from_finder = None
-        self.history = {"train_loss": [], "test_loss": []}
+        self.history = {"train_loss": [], "val_loss": []}
         self.status_bar = status_bar
         self.quantile_loss = quantile_loss
         self.autoregressive = autoregressive
@@ -65,7 +65,7 @@ class Tirex_Trainer():
 
         Args:
             train_loader (_type_): _description_
-            test_loader (_type_): _description_
+            val_loader (_type_): _description_
         """
         self.model.train()  # Set model to train mode
         train_loss = 0.0
@@ -139,15 +139,15 @@ class Tirex_Trainer():
         if self.scheduler is not None:
             self.scheduler.step()
         
-        # Test loss
+        # Validation loss
         self.model.eval()  # Set model to eval mode
         with torch.no_grad():
-            test_loss = 0.0
-            length_test_loader = len(self.test_loader)
-            batch_bar_test = tqdm(self.test_loader, total=length_test_loader,
-                                   leave=False, position=1, desc='Batches Test',
+            val_loss = 0.0
+            length_val_loader = len(self.val_loader)
+            batch_bar_val = tqdm(self.val_loader, total=length_val_loader,
+                                   leave=False, position=1, desc='Batches Val',
                                      disable=not self.status_bar)
-            for i, (x_batch, y_batch, pred_length_batch) in enumerate(batch_bar_test):
+            for i, (x_batch, y_batch, pred_length_batch) in enumerate(batch_bar_val):
                 # put tensors on same device
                 x = x_batch.to(self.device)
                 y = y_batch.to(self.device)
@@ -167,13 +167,13 @@ class Tirex_Trainer():
                     mean = outputs[:, :, mean_idx].squeeze(-1)  # median as mean
                     loss = self.criterion(mean, y)                
 
-                batch_bar_test.set_postfix(test_loss=loss.item())
-                test_loss += loss.item()
-            test_loss /= length_test_loader
+                batch_bar_val.set_postfix(val_loss=loss.item())
+                val_loss += loss.item()
+            val_loss /= length_val_loader
 
-        return train_loss, test_loss
+        return train_loss, val_loss
     
-    def train(self, train_dataloader, test_dataloader,
+    def train(self, train_dataloader, val_dataloader=None,
               batch_size=32,
               num_epochs=100,
               use_clipping:bool=False,
@@ -186,10 +186,9 @@ class Tirex_Trainer():
 
         Args:
             train_dataset (_type_): _description_
-            test_dataset (_type_): _description_
+            val_dataset (_type_): _description_
             num_epochs (int, optional): _description_. Defaults to 100.
         """
-        
         # set scheduler
         if use_scheduler:
             # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.1)
@@ -212,37 +211,37 @@ class Tirex_Trainer():
                                   
         # Dataloaders
         self.train_loader = train_dataloader
-        self.test_loader = test_dataloader         
+        self.val_loader = val_dataloader
         
         # training loop
         early_stopper = EarlyStopping(patience=early_stop_patience, min_delta=1e-4)
-        best_test_loss = float('inf')
+        best_val_loss = float('inf')
         epoch_bar = tqdm(range(num_epochs), total=num_epochs, leave=True, position=0, desc='Epochs')
         for epoch in epoch_bar:
             # train one epoch
-            train_loss, test_loss = self.train_epoch(epoch, use_clipping, clipping_max_norm)
+            train_loss, val_loss = self.train_epoch(epoch, use_clipping, clipping_max_norm)
                                        
             # save best model
-            if best_test_loss > test_loss:
+            if best_val_loss > val_loss:
                 torch.save(self.model.state_dict(), self.model_best_path)
-                best_test_loss = test_loss
+                best_val_loss = val_loss
 
             # log losses
             self.history['train_loss'].append(train_loss)
-            self.history['test_loss'].append(test_loss)
-            epoch_bar.set_postfix(train_loss=train_loss, test_loss=test_loss,)
+            self.history['val_loss'].append(val_loss)
+            epoch_bar.set_postfix(train_loss=train_loss, val_loss=val_loss,)
             self.writer.log_epoch_metrics(
                 epoch=epoch + 1,
                 metrics={
                     'train_loss': train_loss, 
-                    'test_loss': test_loss,
+                    'val_loss': val_loss,
                     'learning_rate': self.optimizer.param_groups[0]['lr']
                 }
             )
             # just in case, so we can continue training from the last epoch
             torch.save(self.model.state_dict(), self.model_last_path) # save last model
 
-            if early_stopper(test_loss):
+            if early_stopper(val_loss):
                 print(f"Early stopping at epoch {epoch}")
                 break
 
@@ -256,13 +255,13 @@ class Tirex_Trainer():
 
         # Get the data to plot from the history dictionary.
         train_losses = self.history["train_loss"]
-        test_losses = self.history["test_loss"]
+        val_losses = self.history["val_loss"]
         epochs = list(range(len(train_losses)))
 
         # Plot loss as a function of the learning rate
         fig, ax = plt.subplots()
         ax.plot(epochs, train_losses, label='train')
-        ax.plot(epochs, test_losses, label='test')
+        ax.plot(epochs, val_losses, label='val')
         if log_lr:
             ax.set_xscale("log")
         ax.set_xlabel("Epoch")
@@ -272,15 +271,16 @@ class Tirex_Trainer():
 
         return fig
 
-    def lr_range_test(self, train_dataset, test_dataset=None, batch_size=32, **kwargs):
+    def lr_range_val(self, train_dataset, val_dataset=None, batch_size=32, **kwargs):
+
         lr_finder = LRFinder(self.model, self.optimizer, self.criterion, self.device, memory_cache=True)
         lr_train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
-        if test_dataset is not None:
-            lr_test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
+        if val_dataset is not None:
+            lr_val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
         else:
-            lr_test_loader = None
+            lr_val_loader = None
         # make the test
-        lr_finder.range_test(lr_train_loader, val_loader=lr_test_loader, end_lr=100, num_iter=100, **kwargs)
+        lr_finder.range_test(lr_train_loader, val_loader=lr_val_loader, end_lr=100, num_iter=100, **kwargs)
         # create plot and find minimum lr
         lr_fig = lr_finder.plot()
         lr_idx_lowest = np.array(lr_finder.history["loss"]).argmin()
@@ -292,6 +292,10 @@ class Tirex_Trainer():
         
         plt.show()
         return lr_fig, self.lr_from_finder
+
+    def lr_range_test(self, train_dataset, test_dataset=None, batch_size=32, **kwargs):
+        # Compatibility wrapper around renamed validation API.
+        return self.lr_range_val(train_dataset, val_dataset=test_dataset, batch_size=batch_size, **kwargs)
     
     def lr_update(self, new_lrs=None):
         if new_lrs is None:

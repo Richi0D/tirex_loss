@@ -17,7 +17,7 @@
       - How does covariates help or influence against distribution shift.
 
 ## Notes
-- Font für Math und Text
+- Font für Math und Text (use non fancy fonts here \usepackage[techreport,nofancyfonts]{jkureport})
 - Bilder modified, sauber zitieren und beschreiben (modified, source)
 - xLSTM vs LSTM -> Genauer erklären. sLSTM, normalization
 - prediction length = horizon

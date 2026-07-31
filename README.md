@@ -56,7 +56,8 @@ uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available
 Use the notebook [data_download.ipynb](notebooks/data_download.ipynb) to download all the test and evaluation data used for the project.
 After running it you should have three CSV files.
 - **data/train.csv:** Contain all the training data used.
-- **data/test.csv:** Contain all the test and validation data used.
+- **data/validation.csv:** Contain all the validation data used.
+- **data/test.csv:** Contain all the test data used.
 - **data/description_sequences.csv:** Additional information to each sequence.
 
 ### 5. Trained Models
@@ -67,7 +68,7 @@ Please download the ZIP file below and extract its contents into your local `mod
 * **[Download Trained Models ZIP](https://drive.google.com/file/d/1CamTuC_jn52l-22ddB8TBWHIwwhUfmGR/view?usp=sharing)**
 
 #### Directory Structure After Extraction
-* best_model: model with the best test loss.
+* best_model: model with the best validation loss.
 * last_model: model after the last epoch.
 
 Once extracted, ensure your directory tree looks like this:

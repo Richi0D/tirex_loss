@@ -117,7 +117,7 @@ class Mod_Tirex(nn.Module):
         self.slstm_block_config = sLSTMBlockConfig(embedding_dim=hidden_size, num_heads=4)
         if use_slstm:
             # backend can be "torch" or "cuda". Only use cuda if xlstm with custom cuda kernel is installed!
-            self.hidden_block = sLSTMBlock(config=self.slstm_block_config, backend='torch')
+            self.hidden_block = sLSTMBlock(config=self.slstm_block_config, backend='cuda')
         else:
             self.hidden_block = LSTMBlock(config=self.slstm_block_config, hidden_size=hidden_size, num_layers=4)
 

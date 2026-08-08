@@ -28,4 +28,9 @@
 - quantile vs mse in conclusion
 - quantile loss same formula
 - validation set
-- 
+
+
+# Next Meeting
+
+## Bulletpoints
+- Init weights is important (weights in slstm layer created with empty which causes nan values at init.)

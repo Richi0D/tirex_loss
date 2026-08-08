@@ -262,7 +262,7 @@
 
 \addsec{Abstract}
 
-Time series foundation models promise strong zero-shot forecasting performance. This work investigates the TiRex foundation model. We compare three loss functions (quantile, MSE, L1), the model's original multi-patch forecasting behavior against an autoregressive generation strategy, and two dataloader masking strategies (Contiguous Patch Masking vs. a simplified "shift" method). We also train a strongly parameter-reduced custom TiRex variant (1.6 million vs. 35 million parameters) from scratch and compare an xLSTM layer against a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of household, national, and European energy time series. Results show that MSE loss consistently yields the best SMAPE scores, that autoregressive generation improves performance for long forecast horizons but induces quantile collapse, that CPM clearly outperforms the shift strategy, and that the LSTM layer performs slightly better than sLSTM under identical hyperparameters. While the custom, parameter-reduced model cannot match the pre-trained TiRex model's performance, it still learns meaningful forecasting behavior. However, fine-tuning the pre-trained model on a specific task or sequence yields a noticeably larger performance gain, suggesting that fine-tuning the existing foundation model is the more effective route compared to training a smaller custom model from scratch. The work can be found in the GitHub repository:  \url{https://github.com/Richi0D/tirex_loss}
+Time series foundation models promise strong zero-shot forecasting performance. This work investigates the TiRex foundation model. We compare three loss functions (quantile, MSE, L1), the model's original multi-patch forecasting behavior against an autoregressive generation strategy, and two dataloader masking strategies (Contiguous Patch Masking vs. Mask Horizon). We also train a strongly parameter-reduced custom TiRex variant (1.6 million vs. 35 million parameters) from scratch and compare an xLSTM layer against a standard LSTM layer within the same architecture. All experiments are evaluated on a combined dataset of household, national, and European energy time series. Results show that MSE loss consistently yields the best SMAPE scores, that autoregressive generation improves performance for long forecast horizons but induces quantile collapse, that CPM clearly outperforms the mask horizon strategy, and that the LSTM layer performs slightly better than sLSTM under identical hyperparameters. While the custom, parameter-reduced model cannot match the pre-trained TiRex model's performance, it still learns meaningful forecasting behavior. However, fine-tuning the pre-trained model on a specific task or sequence yields a noticeably larger performance gain, suggesting that fine-tuning the existing foundation model is the more effective route compared to training a smaller custom model from scratch. The work can be found in the GitHub repository:  \url{https://github.com/Richi0D/tirex_loss}
 
 
 %% 
@@ -338,6 +338,7 @@ Three loss functions are used to explore their effect in the TiRex setting.
 			q (y_t - \hat{y}_t^q) & \text{if } \hat{y}_t^q \le y_t \\
 			(1 - q) (\hat{y}_t^q - y_t) & \text{otherwise.}
 		\end{cases}
+	\label{eq:quantile_loss}
 	\end{equation}
 
 	\item Mean squared error (MSE): with $q=0.5$ (median) as the fixed quantile.
@@ -359,7 +360,7 @@ A first look was given to the generation method of the predictions or so called 
 
 Other existing pre-trained models (\citeauthor{das2024decoderonlyfoundationmodeltimeseries}~\cite{das2024decoderonlyfoundationmodeltimeseries}; \citeauthor{ansari2024fast}~\cite{ansari2024fast}) address this issue via autoregressive generation, using point estimates such as the mean or median. Therefore the forecast generation method of the TiRex model is modified to use autoregressive generation: instead of inserting missing values, the median of the previously predicted patch is concatenated to the context $c$.
 
-The pre-trained TiRex model was fine-tuned on a single time series, "DE Power - Load DE" from the FETS Dataset, using both the original behavior and the autoregressive method, across all three loss functions described in \autoref{sec:loss}. Fine-tuning was performed by sampling sequences with random prediction lengths between 32 and 128 and passing them through the prediction function, in which a multi-patch prediction is generated and the loss is computed against the true values.
+The pre-trained TiRex model was fine-tuned on a single time series, "DE Power - Load DE" from the FETS Dataset, using both the original behavior and the autoregressive method, across all three loss functions described in \autoref{sec:loss}. Fine-tuning was performed by sampling sequences with random horizon lengths between 32 and 128 and passing them through the prediction function, in which a multi-patch prediction is generated and the loss is computed against the true values.
 
 \subsection{Custom TiRex model}
 \label{sec:custom_tirex}
@@ -368,25 +369,25 @@ Due to limited computational resources, the TiRex model was reduced from around 
 
 The custom TiRex model was trained in various variants, using all loss functions from \autoref{sec:loss}. See \autoref{sec:cpm} and \autoref{sec:xlstm_vs_lstm} for details on the individual variants.
 
-Two dataset variants were used to train the custom model: a larger dataset with 72 time series, and the single series "DE Power - Load DE" described in \autoref{sec:data}, the latter enabling a direct comparison with the fine-tuned TiRex model. For training on the single series, the "shift" dataloader method described in \autoref{sec:cpm} is used.
+Two dataset variants were used to train the custom model: a larger dataset with 72 time series, and the single series "DE Power - Load DE" described in \autoref{sec:data}, the latter enabling a direct comparison with the fine-tuned TiRex model. For training on the single series, the mask horizon strategy described in \autoref{sec:cpm} is used.
 
-\subsubsection{CPM}
+\subsubsection{CPM and MH}
 \label{sec:cpm}
  
-Two different dataloader strategies are implemented for training. The first is Contiguous Patch Masking (CPM), as described in the TiRex paper by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}. The second is a simplified "shift" method, which replicates the multi-patch prediction behavior of the TiRex model. The shift method takes a sequence of length $n$ plus a target length $s$ and creates an input sequence by shifting the context by $s$ and padding the shifted region with missing values. The last patch is used as the target to compute the loss. This is repeated for all multiples of the patch size 32 up to $s$ ($s_{\text{shift}}=[32, 64, 96, 128, \dots, 512]$). The shift method is illustrated in \autoref{fig:shift}. The maximum shift is defined as $s_{\max} = 512$ (half of the context length).
+Two different dataloader strategies are implemented for training. The first is Contiguous Patch Masking (CPM), as described in the TiRex paper by \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}. The second is mask horizon (MH), which replicates the multi-patch prediction behavior of the TiRex model. Mask horizon takes a sequence of length $n$ plus a target length $s$ and creates an input sequence by shifting the context by $s$ and padding the shifted region with missing values. The last patch is used as the target to compute the loss. This is repeated for all multiples of the patch size 32 up to $s$ ($s_{\text{shift}}=[32, 64, 96, 128, \dots, 512]$). Mask horizon is illustrated in \autoref{fig:shift}. The maximum shift is defined as $s_{\max} = 512$ (half of the context length).
 
 
 \begin{figure}[htbp]
 	\centering
 	\includegraphics[width=0.8\linewidth]{images/shift.png}
-	\caption{Illustration of shift method for dataloader strategy.}
+	\caption{Mask horizon. Illustration adapted from \citeauthor{auer2025tirexzeroshotforecastinglong}~\cite{auer2025tirexzeroshotforecastinglong}}
 	\label{fig:shift}
 \end{figure}
 
 \subsubsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm}
 
-An additional point of interest is the effect of replacing the xLSTM layer (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}) with an LSTM layer (\citeauthor{LSTM}~\cite{LSTM}), while keeping the rest of the architecture unchanged.
+An additional point of interest is the effect of replacing the xLSTM layer (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}) with a LSTM layer (\citeauthor{LSTM}~\cite{LSTM}), while keeping the rest of the architecture unchanged. xLSTM introduced two new variants, the mLSTM and sLSTM cell (\citeauthor{beck2024xlstmextendedlongshortterm}~\cite{beck2024xlstmextendedlongshortterm}). For Tirex and the custom implementation only the sLSTM cell is used. The sLSTM cell replaces the activations at the input and forget gate with exponential functions and introduces additional stabilization and normalization mechanisms to handle the large values from exponential activations.
 
 
 \section{Results}
@@ -416,13 +417,13 @@ The scores for the L1 and MSE loss variants of the pre-trained model do not prov
 			cpm & slstm & mse       & \cellcolor[HTML]{fdfebc}0.5553 & 0.5726 & -  & -  \\
 			cpm & slstm & quantile  & \cellcolor[HTML]{fdfebc}0.6637 & 0.6795 & 11.5788 & 13.1078 \\
 			\addlinespace
-			shift & lstm & l1       & \cellcolor[HTML]{fdfebc}0.6691 & 0.7104 & - & - \\
-			shift & lstm & mse      & 0.5670 & \cellcolor[HTML]{fdfebc}0.5582 & -  & -  \\
-			shift & lstm & quantile & \cellcolor[HTML]{fdfebc}0.6745 & 0.6866 & 11.9533 & 12.7776 \\
+			MH & lstm & l1       & \cellcolor[HTML]{fdfebc}0.6691 & 0.7104 & - & - \\
+			MH & lstm & mse      & 0.5670 & \cellcolor[HTML]{fdfebc}0.5582 & -  & -  \\
+			MH & lstm & quantile & \cellcolor[HTML]{fdfebc}0.6745 & 0.6866 & 11.9533 & 12.7776 \\
 			\addlinespace
-			shift & slstm & l1      & \cellcolor[HTML]{fdfebc}0.6713 & 0.7691 & - & - \\
-			shift & slstm & mse     & \cellcolor[HTML]{fdfebc}0.6578 & 0.7180 & - & - \\
-			shift & slstm & quantile & \cellcolor[HTML]{fdfebc}0.6720 & 0.6888 & 11.8404 & 12.7920 \\
+			MH & slstm & l1      & \cellcolor[HTML]{fdfebc}0.6713 & 0.7691 & - & - \\
+			MH & slstm & mse     & \cellcolor[HTML]{fdfebc}0.6578 & 0.7180 & - & - \\
+			MH & slstm & quantile & \cellcolor[HTML]{fdfebc}0.6720 & 0.6888 & 11.8404 & 12.7920 \\
 			\midrule
 			\multicolumn{7}{l}{{\small \emph{Original pre-trained TiRex model}}}\\
 			TiRex & slstm & quantile  & 0.0326 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}0.0314 & 3.4218  & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1} 3.3193  \\
@@ -440,6 +441,7 @@ The scores for the L1 and MSE loss variants of the pre-trained model do not prov
 	\begin{threeparttable}
 		\caption{Evaluation scores (single sequence)}
 		\label{tab:scores_custom_tirex_single}
+		\setlength{\tabcolsep}{3pt}
 		\begin{tabular}{lllcccc}
 			\toprule
 			& & & \multicolumn{2}{c}{\textbf{SMAPE Score}} & \multicolumn{2}{c}{\textbf{Quantile Score}} \\
@@ -447,30 +449,31 @@ The scores for the L1 and MSE loss variants of the pre-trained model do not prov
 			\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Autoregressive} & \textbf{Original} & \textbf{Autoregressive} & \textbf{Original} \\
 			\midrule
 			\multicolumn{7}{l}{{\small \emph{Custom TiRex model}}}\\
-			shift & lstm & l1       & \cellcolor[HTML]{fdfebc}0.0267 & 0.0913 & - & - \\
-			shift & lstm & mse      & \cellcolor[HTML]{fdfebc}0.0255 & 0.0702 & -  & -  \\
-			shift & lstm & quantile & \cellcolor[HTML]{fdfebc}0.1584 & 0.1678 & 4296.68 & 4673.42 \\
+			MH & lstm & l1       & 0.0245 $\pm$ 0.0003 & \cellcolor[HTML]{fdfebc}0.0231 $\pm$ 0.0004 & - & - \\
+			MH & lstm & mse      & 0.0236 $\pm$ 0.0003 & \cellcolor[HTML]{fdfebc}0.0223 $\pm$ 0.0003 & -  & -  \\
+			MH & lstm & quantile & 0.1347 $\pm$ 0.0006 & \cellcolor[HTML]{fdfebc}0.1344 $\pm$ 0.0004 & 3556 $\pm$ 16.74 & 3545 $\pm$ 11.07 \\
 			\addlinespace
-			shift & slstm & l1      & \cellcolor[HTML]{fdfebc}0.0321 & 0.0944 & - & - \\
-			shift & slstm & mse     & \cellcolor[HTML]{fdfebc}0.0321 & 0.0841 & - & - \\
-			shift & slstm & quantile & \cellcolor[HTML]{fdfebc}0.1610 & 0.1705 & 4317.57 & 4545.16 \\
+			MH & slstm & l1      & 0.0277 $\pm$ 0.0006 & \cellcolor[HTML]{fdfebc}0.0268 $\pm$ 0.0004 & - & - \\
+			MH & slstm & mse     & 0.0281 $\pm$ 0.0004 & \cellcolor[HTML]{fdfebc}0.0267 $\pm$ 0.0003 & - & - \\
+			MH & slstm & quantile & 0.1356 $\pm$ 0.0014 & \cellcolor[HTML]{fdfebc}0.1355 $\pm$ 0.0006 & 3579 $\pm$ 40.79 & 3579 $\pm$ 15.82 \\
 			\midrule
 			\multicolumn{7}{l}{{\small \emph{Fine-tuned pre-trained TiRex model}}}\\
-			TiRex Or. & slstm & l1       & 0.0326 & 0.0314 & - & - \\
-			TiRex Or. & slstm & mse      & 0.0326 & 0.0314 & -  & -  \\
-			TiRex Or. & slstm & quantile & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}0.0201 & \cellcolor[HTML]{fdfebc}0.0202 & 441.61 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}429.53 \\
+			TiRex Or. & slstm & l1       & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}0.0217 $\pm$ 0.0002 & 0.0218 $\pm$ 0.0002 & - & - \\
+			TiRex Or. & slstm & mse      & \cellcolor[HTML]{fdfebc}0.0224 $\pm$ 0.0002 & \cellcolor[HTML]{fdfebc}0.0224 $\pm$ 0.0002	 & -  & -  \\
+			TiRex Or. & slstm & quantile & \cellcolor[HTML]{fdfebc}0.0218 $\pm$ 0.0005 & \cellcolor[HTML]{fdfebc}0.0218 $\pm$ 0.0005 & 485.70 $\pm$ 15.40 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}467.15 $\pm$ 14.84 \\
 			\addlinespace
-			TiRex Auto. & slstm & l1      & 0.0326 & 0.0314 & - & - \\
-			TiRex Auto. & slstm & mse     & 0.0326 & 0.0314 & - & - \\
-			TiRex Auto. & slstm & quantile & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}0.0201 & \cellcolor[HTML]{fdfebc}0.0216 & 429.54 & 463.00 \\			
+			TiRex Auto. & slstm & l1      & \cellcolor[HTML]{fdfebc}0.0218 $\pm$ 0.0003 & 0.0249 $\pm$ 0.0009 & - & - \\
+			TiRex Auto. & slstm & mse     & \cellcolor[HTML]{fdfebc}0.0219 $\pm$ 0.0003 & 0.0243 $\pm$ 0.0004 & - & - \\
+			TiRex Auto. & slstm & quantile & \cellcolor[HTML]{fdfebc}0.0221 $\pm$ 0.0003 & 0.0234 $\pm$ 0.0003 & 472.57 $\pm$ 14.14 & 501.26 $\pm$ 11.58 \\			
 			\midrule
 			\multicolumn{7}{l}{{\small \emph{Original pre-trained TiRex model}}}\\
-			TiRex & slstm & quantile  & 0.0326 & \cellcolor[HTML]{fdfebc}0.0314 & 712.31  &  655.82  \\
+			TiRex & slstm & quantile  & 0.0350 & \cellcolor[HTML]{fdfebc}0.0338 & 770.29  &  710.96  \\
 			\bottomrule
 		\end{tabular}
 		\begin{tablenotes}
 			\small
-			\item[a] Lower scores indicate better predictive performance across both metrics. Best score overall is marked in green and best score for each variant is marked in yellow.
+			\item[a] Mean $\pm$ std across 5 independent runs.
+			\item[b] Lower scores indicate better predictive performance across both metrics. Best score overall is marked in green and best score for each variant is marked in yellow.
 		\end{tablenotes}	
 	\end{threeparttable}
 \end{table}
@@ -492,18 +495,13 @@ where $t$ is the timestep, $A_t$ the actual values and $F_t$ the forecasted valu
 
 \subsubsection{Quantile Loss}
 \label{sec:quantile_loss}
-In addition to sMAPE, the quantile (pinball) loss is used to measure the quality of the individual quantile predictions. For a given quantile level $\tau \in (0,1)$, the quantile loss for a single observation $y$ and its corresponding predicted quantile $\hat{y}_\tau$ is defined as:
-\begin{align}
-	QL_\tau(y, \hat{y}_\tau) = \max\big(\tau \cdot (y - \hat{y}_\tau),\ (\tau - 1) \cdot (y - \hat{y}_\tau)\big)
-	\label{eq:quantile_loss}
-\end{align}
-The overall quantile loss is obtained by averaging $QL_\tau$ over all evaluated quantile levels $\tau \in \{\tau_1, \dots, \tau_K\}$ and over all time steps $t$.
+In addition to sMAPE, the quantile (pinball) loss is used to measure the quality of the individual quantile predictions. For a given quantile level $q \in Q$ and time step $t$, the quantile loss is computed using the same piecewise formulation as in Equation~\ref{eq:quantile_loss}. The overall quantile loss reported for evaluation is obtained by averaging this loss over the forecast horizon $t = 1,\ldots,h$ and all evaluated quantile levels $q \in Q$.
 
 
 \subsection{Autoregressive}
 \label{sec:autoregressive_results}
 
-As shown in \autoref{tab:scores_custom_tirex_full} and \autoref{tab:scores_custom_tirex_single}, the autoregressive method scores slightly better in most experiments. Only the original pre-trained TiRex model scores better with its original NaN-filling behavior (inserting missing values into the shifted context instead of the median prediction) for multi-patch prediction. As shown in \autoref{fig:autoregressive_compare}, especially for very long prediction lengths that exceed the model's context length, the autoregressive behavior still produces values that fit the ground truth well. The original behavior, in contrast, suffers from the problem that for long prediction horizons, known past values are gradually shifted out of the model's context until only null values remain. The autoregressive behavior, on the other hand, suffers from quantile collapse: as shown in \autoref{fig:autoregressive_compare_short}, after the second patch (timestep $>$ 32), once predictions from the previous step become part of the context, the quantiles get noticeably worse compared to the original behavior.
+As shown in \autoref{tab:scores_custom_tirex_full} and \autoref{tab:scores_custom_tirex_single}, the autoregressive method scores slightly better in most experiments. Only the original pre-trained TiRex model scores better with its original NaN-filling behavior (inserting missing values into the shifted context instead of the median prediction) for multi-patch prediction. As shown in \autoref{fig:autoregressive_compare}, especially for a very long horizon that exceed the model's context length, the autoregressive behavior still produces values that fit the ground truth well. The original behavior, in contrast, suffers from the problem that for long horizons, known past values are gradually shifted out of the model's context until only null values remain. The autoregressive behavior, on the other hand, suffers from quantile collapse: as shown in \autoref{fig:autoregressive_compare_short}, after the second patch (timestep $>$ 32), once predictions from the previous step become part of the context, the quantiles get noticeably worse compared to the original behavior.
 
 \begin{figure}[htbp]
 	\centering
@@ -514,13 +512,13 @@ As shown in \autoref{tab:scores_custom_tirex_full} and \autoref{tab:scores_custo
 \begin{figure}[htbp]
 	\centering
 	\includegraphics[width=1.0\linewidth]{images/autoreg_compare_short.png}
-	\caption{Comparison of autoregressive behavior vs. nan-filling method. On prediction length $h=192$.}
+	\caption{Comparison of autoregressive behavior vs. nan-filling method. On horizon $h=192$.}
 	\label{fig:autoregressive_compare_short}
 \end{figure}
 
 \subsection{CPM}
 \label{sec:cpm_results}
-CPM has a large impact on training and clearly improves model performance: all CPM scores in \autoref{tab:scores_custom_tirex_full} are better than those of the proposed shift strategy. The models evidently learn better when trained with randomly scattered masked patches (CPM) than with a single, large masked block near the end of the sequence (shift). It appears that the shift strategy removes too much information from the context at once, making the task considerably harder to learn from.
+CPM has a large impact on training and clearly improves model performance: all CPM scores in \autoref{tab:scores_custom_tirex_full} are better than those of mask horizon. The models evidently learn better when trained with randomly scattered masked patches (CPM) than with a single, large masked block near the end of the sequence (MH). It appears that MH removes too much information from the context at once, making the task considerably harder to learn from.
 
 \subsection{xLSTM vs. LSTM}
 \label{sec:xlstm_vs_lstm_results}
@@ -535,6 +533,7 @@ In general, only the model checkpoint with the best test loss is used for evalua
 	\begin{threeparttable}
 		\caption{Evaluation scores (big dataset), Best vs. Last Test Loss}
 		\label{tab:scores_custom_tirex_best_last}
+		\setlength{\tabcolsep}{3pt}
 		\begin{tabular}{lllcccc}
 			\toprule
 			& & & \multicolumn{2}{c}{\textbf{SMAPE Score}} & \multicolumn{2}{c}{\textbf{Quantile Score}} \\
@@ -550,13 +549,13 @@ In general, only the model checkpoint with the best test loss is used for evalua
 			cpm & slstm & mse       & \cellcolor[HTML]{fdfebc}0.5726 & 0.6037 & -  & -  \\
 			cpm & slstm & quantile  & \cellcolor[HTML]{fdfebc}0.6795 & 0.6867 & 13.1078 & \cellcolor[HTML]{fdfebc}12.3918 \\
 			\addlinespace
-			shift & lstm & l1       & \cellcolor[HTML]{fdfebc}0.7104 & 0.7106 & - & - \\
-			shift & lstm & mse      & \cellcolor[HTML]{fdfebc}0.5582 & 0.5791 & -  & -  \\
-			shift & lstm & quantile & 0.6866 & \cellcolor[HTML]{fdfebc}0.6658 & \cellcolor[HTML]{fdfebc}12.7776 & 13.0410 \\
+			MH & lstm & l1       & \cellcolor[HTML]{fdfebc}0.7104 & 0.7106 & - & - \\
+			MH & lstm & mse      & \cellcolor[HTML]{fdfebc}0.5582 & 0.5791 & -  & -  \\
+			MH & lstm & quantile & 0.6866 & \cellcolor[HTML]{fdfebc}0.6658 & \cellcolor[HTML]{fdfebc}12.7776 & 13.0410 \\
 			\addlinespace
-			shift & slstm & l1      & \cellcolor[HTML]{fdfebc}0.7691 & 0.7797 & - & - \\
-			shift & slstm & mse     & \cellcolor[HTML]{fdfebc}0.7180 & 0.7263 & - & - \\
-			shift & slstm & quantile & 0.6888 & \cellcolor[HTML]{fdfebc}0.6806 & 12.7920 & \cellcolor[HTML]{fdfebc}12.4812 \\
+			MH & slstm & l1      & \cellcolor[HTML]{fdfebc}0.7691 & 0.7797 & - & - \\
+			MH & slstm & mse     & \cellcolor[HTML]{fdfebc}0.7180 & 0.7263 & - & - \\
+			MH & slstm & quantile & 0.6888 & \cellcolor[HTML]{fdfebc}0.6806 & 12.7920 & \cellcolor[HTML]{fdfebc}12.4812 \\
 			\bottomrule
 		\end{tabular}
 		\begin{tablenotes}
@@ -572,9 +571,9 @@ In general, only the model checkpoint with the best test loss is used for evalua
 \label{sec:conclusion}
 This work explored several modifications to the TiRex time series foundation model, covering the choice of loss function, the forecast generation strategy, a strongly parameter-reduced custom model, the dataloader masking strategy, and the choice of recurrent layer.
 
-Across all experiments, MSE loss consistently produced the best SMAPE scores, while quantile loss consistently performed worst, likely because it requires the model to fit an entire predictive distribution rather than a single target value. Switching from the original NaN-filling multi-patch generation to autoregressive generation improved performance in most settings, and was particularly beneficial for forecast horizons exceeding the model's context length, where the original method degrades as known values are pushed out of context. This benefit came at the cost of quantile collapse over successive autoregressive steps. A combination of both methods could benefit the predictions, specially if the prediction length is long. For shorter prediction lengths the standard multi-patch generation could be used and after a certain prediction length is reached, the model could switch to autoregressive generation.
+Across all experiments, MSE loss consistently produced the best SMAPE scores, while quantile loss consistently performed worst, likely because it requires the model to fit an entire predictive distribution rather than a single target value. Switching from the original NaN-filling multi-patch generation to autoregressive generation improved performance in most settings, and was particularly beneficial for forecast horizons exceeding the model's context length, where the original method degrades as known values are pushed out of context. This benefit came at the cost of quantile collapse over successive autoregressive steps. A combination of both methods could benefit the predictions, specially if the horizon is long. For shorter horizons the standard multi-patch generation could be used and after a certain forecast horizon is reached, the model could switch to autoregressive generation.
 
-For the training data strategy, Contiguous Patch Masking (CPM) clearly outperformed the simpler "shift" method, suggesting that exposing the model to many small, randomly distributed masked regions during training is more effective than masking a single large block. Replacing the xLSTM layer with a standard LSTM layer led to a small but consistent improvement, though this may be an artifact of using identical hyperparameters for both variants rather than a general property of the two layer types. This should be further investigated.
+For the training data strategy, Contiguous Patch Masking (CPM) clearly outperformed the simpler Mask Horizon (MH), suggesting that exposing the model to many small, randomly distributed masked regions during training is more effective than masking a single large block. Replacing the xLSTM layer with a standard LSTM layer led to a small but consistent improvement, though this may be an artifact of using identical hyperparameters for both variants rather than a general property of the two layer types. This should be further investigated.
 
 Finally, comparing checkpoints selected by best versus last test loss confirmed that early stopping on test loss is generally the right choice, but also revealed that quantile calibration keeps improving with additional training, suggesting that test loss and quantile quality do not always improve together.
 
@@ -611,29 +610,60 @@ Final note: During the course of this work, an improved version of the TiRex fou
 \section{An Appendix}
 \label{app:an-appendix}
 
-\subsection{Train and Test Losses, Fine-tuning pre-trained model on single sequence}
+\subsection{Train and Validation Losses, Fine-tuning pre-trained model on single sequence}
 \label{sec:losses_tirex_single}
 
-Train and test losses are visible in \autoref{tab:losses_tirex_single} and \autoref{fig:losses_tirex_single}.
+Train and Validation losses are visible in \autoref{tab:losses_tirex_single} and \autoref{fig:losses_tirex_single}.
 
 \begin{table}[htbp]
 	\centering
-	\caption{Train Losses - Pre-trained TiRex (single sequence)}
-	\label{tab:losses_tirex_single}
-	\begin{tabular}{lllrrr}
-		\toprule
-		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Test Loss}\\
-		\midrule
-		TiRex Original & slstm & quantile & 15 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}197.24 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}456.92 \\
-		TiRex Autoregressive & slstm  & quantile & 15 & 223.38 & 457.49 \\
-		\midrule
-		TiRex Original & slstm & mse      & 15 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}5,648,324.81 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1} 7,234,065.25 \\
-		TiRex Autoregressive & slstm  & mse      & 15 & 6,136,206.37 & 7,673,015.60  \\
-		\midrule
-		TiRex Original & slstm & l1       & 15 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1584.60 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,793.49  \\
-		TiRex Autoregressive & slstm  & l1       & 15 & 1,629.62 & 1,846.40  \\
-		\bottomrule
-	\end{tabular}
+	\begin{threeparttable}
+		\caption{Train Losses - Pre-trained TiRex (single sequence)}
+		\label{tab:losses_tirex_single}
+		\setlength{\tabcolsep}{3pt}
+		\begin{tabular}{lllrr}
+			\toprule
+			\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} &
+			\textbf{Best Train Loss} & \textbf{Best Validation Loss}\\
+			\midrule
+			
+			TiRex Original & slstm & quantile &
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}200.12 $\pm$ 3.28 &
+			409.94 $\pm$ 4.34 \\
+			
+			TiRex Autoregressive & slstm & quantile &
+			218.08 $\pm$ 3.68 & 
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}404.46 $\pm$ 5.41	 \\
+			
+			\midrule
+			
+			TiRex Original & slstm & mse &
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}506,763 $\pm$ 28,471 &
+			2,048,799 $\pm$ 36,625 \\
+			
+			TiRex Autoregressive & slstm & mse &
+			725,797 $\pm$ 38,896 & 
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}2,029,340 $\pm$ 127,107 \\
+			
+			\midrule
+			
+			TiRex Original & slstm & l1 &
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}576.12 $\pm$ 18.21 &
+			1,031.99 $\pm$ 10.82	 \\
+			
+			TiRex Autoregressive & slstm & l1 &
+			594.73 $\pm$ 9.14 & 
+			\cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,005.34 $\pm$ 16.54 \\
+			
+			\bottomrule
+		\end{tabular}
+		
+		\begin{tablenotes}
+			\small
+			\item[a] Mean $\pm$ std across runs (lower loss is better).
+			\item[b] Each configuration was trained for 15 epochs in each of 5 independent runs.
+		\end{tablenotes}
+	\end{threeparttable}
 \end{table}
 
 
@@ -644,10 +674,10 @@ Train and test losses are visible in \autoref{tab:losses_tirex_single} and \auto
 	\label{fig:losses_tirex_single}
 \end{figure}
 
-\subsection{Train and Test Losses, Custom TiRex on big dataset}
+\subsection{Train and Validation Losses, Custom TiRex on big dataset}
 \label{sec:losses_custom_tirex_full}
 
-Train and test losses are visible in \autoref{tab:losses_custom_tirex_full} and \autoref{fig:losses_custom_tirex_full}.
+Train and Validation losses are visible in \autoref{tab:losses_custom_tirex_full} and \autoref{fig:losses_custom_tirex_full}.
 
 \begin{table}[htbp]
 	\centering
@@ -655,20 +685,20 @@ Train and test losses are visible in \autoref{tab:losses_custom_tirex_full} and 
 	\label{tab:losses_custom_tirex_full}
 	\begin{tabular}{llllrrr}
 		\toprule
-		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Test Loss}\\
+		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Validation Loss}\\
 		\midrule
-		shift & slstm & quantile & 100 & 74.78 & 559.20 \\
-		shift & lstm  & quantile & 100 & 41.41 & 571.46 \\
+		MH & slstm & quantile & 100 & 74.78 & 559.20 \\
+		MH & lstm  & quantile & 100 & 41.41 & 571.46 \\
 		cpm & slstm    & quantile & 100 & 42.21 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}308.27 \\
 		cpm & lstm     & quantile & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}29.07 & 322.94 \\
 		\midrule
-		shift & slstm & mse      & 100 & 2,901,915.03 & 4,634,443.72 \\
-		shift & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}46,591.36 & 9,396,074.49  \\
+		MH & slstm & mse      & 100 & 2,901,915 & 4,634,443 \\
+		MH & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}46,591 & 9,396,074  \\
 		cpm & slstm    & mse      & 100 & 97,453.89 & 8,169,185.35  \\
 		cpm & lstm      & mse      & 100 & 59,365.80 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}7,820,493.16 \\
 		\midrule
-		shift & slstm & l1       & 100 & 1,246.28 & 1,534.37  \\
-		shift & lstm  & l1       & 100 & 1,002.50 & 1,388.01  \\
+		MH & slstm & l1       & 100 & 1,246.28 & 1,534.37  \\
+		MH & lstm  & l1       & 100 & 1,002.50 & 1,388.01  \\
 		cpm & slstm    & l1       & 100 & 144.08 & 606.34 \\
 		cpm & lstm     & l1       & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}113.85 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}593.13 \\
 		\bottomrule
@@ -683,29 +713,37 @@ Train and test losses are visible in \autoref{tab:losses_custom_tirex_full} and 
 \end{figure}
 
 
-\subsection{Train and Test Losses, Custom TiRex on single sequence}
+\subsection{Train and Validation Losses, Custom TiRex on single sequence}
 \label{sec:losses_custom_tirex_single}
 
-Train and test losses are visible in \autoref{tab:losses_custom_tirex_single} and \autoref{fig:losses_custom_tirex_single}.
+Train and Validation losses are visible in \autoref{tab:losses_custom_tirex_single} and \autoref{fig:losses_custom_tirex_single}.
 
 \begin{table}[htbp]
 	\centering
-	\caption{Train Losses - Custom TiRex (single sequence)}
-	\label{tab:losses_custom_tirex_single}
-	\begin{tabular}{lllrrr}
-		\toprule
-		\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Test Loss}\\
-		\midrule
-		shift & slstm & quantile & 100 & 504.15 & 576.95 \\
-		shift & lstm  & quantile & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}383.60 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}527.99 \\
-		\midrule
-		shift & slstm & mse      & 100 & 3,101,287.11 & 4,775,838.26 \\
-		shift & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,293,486.37 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}3,125,015.24  \\
-		\midrule
-		shift & slstm & l1       & 100 & 1,509.92 & 1,519.90  \\
-		shift & lstm  & l1       & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}974.00 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,384.28  \\
-		\bottomrule
-	\end{tabular}
+	\begin{threeparttable}
+		\caption{Train Losses - Custom TiRex (single sequence)}
+		\label{tab:losses_custom_tirex_single}
+		\setlength{\tabcolsep}{3pt}
+		\begin{tabular}{lllrrr}
+			\toprule
+			\textbf{Dataloader} & \textbf{Layer} & \textbf{Loss} & \textbf{Total Epochs} & \textbf{Best Train Loss} & \textbf{Best Validation Loss}\\
+			\midrule
+			MH & slstm & quantile & 100 & 543.71 $\pm$ 7.83 & 612.24 $\pm$ 6.96 \\
+			MH & lstm  & quantile & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}399.73 $\pm$ 3.77 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}545.44 $\pm$ 4.27 \\
+			\midrule
+			MH & slstm & mse      & 100 & 3,483,126.45 $\pm$ 72,156.17 & 4,867,615 $\pm$ 16,038 \\
+			MH & lstm  & mse      & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,219,947 $\pm$ 69,377.99 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}3,730,064$\pm$ 200,138  \\
+			\midrule
+			MH & slstm & l1       & 100 & 1,326.44 $\pm$ 17.14 & 1,551.57 $\pm$ 20.72  \\
+			MH & lstm  & l1       & 100 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,009.09 $\pm$ 31.85 & \cellcolor[HTML]{006837}\color[HTML]{f1f1f1}1,460.09 $\pm$ 39.63  \\
+			\bottomrule
+		\end{tabular}
+		\begin{tablenotes}
+			\small
+			\item[a] Mean $\pm$ std across runs (lower loss is better).
+			\item[b] Each configuration was trained for 100 epochs in each of 5 independent runs.
+		\end{tablenotes}
+	\end{threeparttable}		
 \end{table}
 
 

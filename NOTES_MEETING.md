@@ -4,7 +4,7 @@
 
 ## Bulletpoints
 
-- Init weights is important (weights in slstm layer created with empty which causes nan values at init.)
+- Init weights (weights in slstm layer created with empty which causes nan values at init.)
 - Report check and update
 - Open question from last meeting.
 -

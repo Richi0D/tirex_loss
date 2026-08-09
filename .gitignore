@@ -192,3 +192,4 @@ data/description_sequences.csv
 *.pth
 models/models.zip
 data/validation.csv
+models/models_v2.zip

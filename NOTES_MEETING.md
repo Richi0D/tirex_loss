@@ -3,22 +3,26 @@
 # Next Meeting
 
 ## Bulletpoints
-
 - Init weights (weights in slstm layer created with empty which causes nan values at init.)
 - Report check and update
 - Open question from last meeting.
 -
 
 ## Notes
+- Grading request für PR
+- TCM, TSI, AR, (univariate generators), shift muss im context vorhanden sein.
+- Tirex-2, Cronos-2, Toto 2.0 (Vergleiche mit Vorgänger)
+- https://github.com/autogluon/fev
+- Dyst (Tirex-2 Paper)
+- 
 
--
+
 
 ---
 
 # 30.07.2026
 
 ## Bulletpoints
-
 - Report finished. Check Question.
 - Tirex2
   - Memory cell at long prediction lengths (streaming, autoregressive), is forgetting and fast adaption bad (exponential gates, forget gate)? No knowledge anymore from far back. Can not recognize old patterns.
@@ -32,7 +36,6 @@
     - How does covariates help or influence against distribution shift.
 
 ## Notes
-
 - Font für Math und Text (use non fancy fonts here ```\usepackage[techreport,nofancyfonts]{jkureport}```)
 - Bilder modified, sauber zitieren und beschreiben (modified, source)
 - xLSTM vs LSTM -> Genauer erklären. sLSTM, normalization
